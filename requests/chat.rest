@@ -1,0 +1,34 @@
+@BaseUrl = {{$dotenv BASE_URL}}
+
+### Chat — turno 1: deve abrir um stream `text/event-stream` com eventos `token`
+###                 incrementais e terminar em `event: done` carregando o session_id.
+POST {{BaseUrl}}/chat
+Content-Type: application/json
+Accept: text/event-stream
+
+{
+  "session_id": "s1",
+  "message": "Quem é você?"
+}
+
+
+### Chat — turno 2 (mesma session): valida memória conversacional via Redis;
+###                 a resposta deve referenciar a pergunta anterior.
+POST {{BaseUrl}}/chat
+Content-Type: application/json
+Accept: text/event-stream
+
+{
+  "session_id": "s1",
+  "message": "O que perguntei antes?"
+}
+
+
+### Chat — validação 422 (message vazio viola min_length=1)
+POST {{BaseUrl}}/chat
+Content-Type: application/json
+
+{
+  "session_id": "s1",
+  "message": ""
+}

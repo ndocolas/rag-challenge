@@ -1,0 +1,48 @@
+# Virtualenvs and caches
+**/.venv
+**/venv
+**/env
+**/__pycache__
+**/*.pyc
+**/*.pyo
+**/*.pyd
+**/.pytest_cache
+**/.ruff_cache
+**/.mypy_cache
+.coverage
+.coverage.*
+htmlcov
+
+# VCS / tooling
+.git
+.gitignore
+.gitattributes
+.github
+
+# Editor / OS
+.vscode
+.idea
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Env files (secrets) — keep .env.example out too; image runs with --env-file
+.env
+.env.*
+.env.example
+
+# Docker artifacts themselves
+Dockerfile
+.dockerignore
+docker-compose.yml
+docker-compose.*.yml
+
+# Project assets not needed at build time
+tests
+tasks
+requests
+data
+frontend
+node_modules
+*.log

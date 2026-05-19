@@ -1,0 +1,1 @@
+"""Panvel Pharmaceutical Conversational Assistant."""

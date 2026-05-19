@@ -1,0 +1,52 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Virtual envs
+.venv/
+venv/
+env/
+
+# Env files (secrets)
+.env
+.env.local
+.env.*.local
+requests/.env
+
+# Test / coverage
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Data caches (assets in data/ are versioned; cache contents are not)
+data/cache/*
+!data/cache/.gitkeep
+
+# Node (frontend tasks 10+)
+node_modules/
+.next/
+.turbo/
+dist/

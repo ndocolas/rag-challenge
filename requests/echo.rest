@@ -1,0 +1,31 @@
+@BaseUrl = {{$dotenv BASE_URL}}
+
+### Echo chat — happy path: response should have role=assistant and content="echo: hi"
+POST {{BaseUrl}}/v1/echo/chat
+Content-Type: application/json
+
+{
+  "session_id": "s1",
+  "message": "hi"
+}
+
+
+### Echo chat with a custom trace id — X-Trace-Id should be echoed in the response headers
+POST {{BaseUrl}}/v1/echo/chat
+Content-Type: application/json
+X-Trace-Id: trace-echo-001
+
+{
+  "session_id": "demo-session",
+  "message": "what is the dosage of Rocefin?"
+}
+
+
+### Echo chat — validation 422 (empty message violates min_length=1)
+POST {{BaseUrl}}/v1/echo/chat
+Content-Type: application/json
+
+{
+  "session_id": "s1",
+  "message": ""
+}

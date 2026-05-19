@@ -1,0 +1,13 @@
+@BaseUrl = {{$dotenv BASE_URL}}
+
+### Healthcheck — should respond {"status":"ok","env":"dev"}
+GET {{BaseUrl}}/health
+
+
+### Healthcheck with a custom trace id — response header X-Trace-Id should echo the value
+GET {{BaseUrl}}/health
+X-Trace-Id: trace-manual-001
+
+
+### Root (sanity check) — Task 01 does not define an explicit `/` route; expect 404
+GET {{BaseUrl}}/
