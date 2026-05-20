@@ -3,9 +3,11 @@
 from datetime import UTC, datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 ChatRole = Literal["user", "assistant", "system", "tool"]
+
+SESSION_ID_PATTERN = r"^[A-Za-z0-9_-]{1,128}$"
 
 
 class ChatMessage(BaseModel):
@@ -17,8 +19,31 @@ class ChatMessage(BaseModel):
 
 
 class ChatRequest(BaseModel):
-    session_id: str = Field(..., min_length=1, max_length=128)
+    session_id: str = Field(
+        ...,
+        min_length=1,
+        max_length=128,
+        pattern=SESSION_ID_PATTERN,
+        description=(
+            "Opaque session identifier, alphanumeric plus '-' and '_' only. "
+            "Used as a Redis key suffix; rejecting other characters prevents "
+            "key pollution and ambiguous logs."
+        ),
+    )
     message: str = Field(..., min_length=1, max_length=4000)
+
+    @field_validator("message")
+    @classmethod
+    def _strip_and_require_non_empty(cls, value: str) -> str:
+        """Trim outer whitespace and reject inputs that collapse to empty.
+
+        Pydantic's ``min_length=1`` accepts ``"   "``; we additionally enforce
+        a non-whitespace character so the LLM never sees a blank prompt.
+        """
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("message must contain non-whitespace characters")
+        return stripped
 
 
 class Citation(BaseModel):
@@ -40,7 +65,7 @@ class ToolCallTrace(BaseModel):
 
 
 StreamEventType = Literal[
-    "token", "tool_call", "tool_result", "sources", "done", "error"
+    "token", "tool_call", "tool_result", "sources", "done", "error", "trace_id"
 ]
 
 

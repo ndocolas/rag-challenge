@@ -48,6 +48,40 @@ def test_chat_request_validation_missing_session_id():
         ChatRequest.model_validate({"message": "oi"})
 
 
+# A9 — message must contain non-whitespace characters.
+def test_chat_request_rejects_whitespace_only_message():
+    with pytest.raises(ValidationError):
+        ChatRequest(session_id="s1", message="   ")
+    with pytest.raises(ValidationError):
+        ChatRequest(session_id="s1", message="\n\t  \n")
+
+
+def test_chat_request_strips_outer_whitespace_on_message():
+    req = ChatRequest(session_id="s1", message="  hello  ")
+    assert req.message == "hello"
+
+
+# A10 — session_id must match the safe-character regex.
+@pytest.mark.parametrize(
+    "bad_session_id",
+    ["with space", "weird/slash", "colon:here", "new\nline", "tab\there", "*", ""],
+)
+def test_chat_request_rejects_unsafe_session_id(bad_session_id: str):
+    with pytest.raises(ValidationError):
+        ChatRequest(session_id=bad_session_id, message="oi")
+
+
+@pytest.mark.parametrize("good_session_id", ["abc", "ABC-123", "user_42", "a" * 128])
+def test_chat_request_accepts_safe_session_id(good_session_id: str):
+    req = ChatRequest(session_id=good_session_id, message="oi")
+    assert req.session_id == good_session_id
+
+
+def test_chat_request_rejects_session_id_over_128():
+    with pytest.raises(ValidationError):
+        ChatRequest(session_id="a" * 129, message="oi")
+
+
 def test_citation_required_fields():
     with pytest.raises(ValidationError):
         Citation.model_validate({"med_name": "Ritalina"})
