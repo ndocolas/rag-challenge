@@ -295,7 +295,10 @@ class RedisHistoryStore:
                 results = await pipe.execute()
             current = int(results[0])
         except redis_exc.RedisError:
-            logger.warning("rate limit check failed; fail-open", extra={**_logger_extra, "bucket": bucket})
+            logger.warning(
+                "rate limit check failed; fail-open",
+                extra={**_logger_extra, "bucket": bucket},
+            )
             return True, 0
         return current <= max_per_minute, current
 

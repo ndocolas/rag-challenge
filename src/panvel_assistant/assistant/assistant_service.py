@@ -213,6 +213,24 @@ class AssistantService:
                 ToolCallTrace(name=name, args=args, error=str(exc), latency_ms=latency),
             )
 
+    def _detect_tool_loop(
+        self, tool_calls: list[dict], seen_calls: set[str]
+    ) -> str | None:
+        """Return the name of the first repeated tool call, or None.
+
+        Mutates ``seen_calls`` with fingerprints of non-duplicate calls so the
+        caller can keep accumulating across iterations.
+        """
+        for tc in tool_calls:
+            fingerprint = json.dumps(
+                {"name": tc["name"], "args": tc.get("args") or {}},
+                sort_keys=True,
+            )
+            if fingerprint in seen_calls:
+                return tc["name"]
+            seen_calls.add(fingerprint)
+        return None
+
     async def stream_with_tools(
         self, messages: Sequence[BaseMessage]
     ) -> AsyncIterator[dict[str, Any]]:
@@ -277,21 +295,16 @@ class AssistantService:
                 yield {"type": "done", "tokens_in": tokens_in, "tokens_out": tokens_out}
                 return
 
-            # Detect loops: if any call in this batch was already dispatched
-            # with identical arguments this turn, abort rather than repeat.
-            for tc in tool_calls:
-                fingerprint = json.dumps(
-                    {"name": tc["name"], "args": tc.get("args") or {}},
-                    sort_keys=True,
+            # Detect loops: abort if any call in this batch was already
+            # dispatched with identical arguments this turn.
+            repeated_tool = self._detect_tool_loop(tool_calls, seen_calls)
+            if repeated_tool:
+                logger.warning(
+                    "repeated tool call detected; aborting loop",
+                    extra={**_logger_extra, "tool": repeated_tool},
                 )
-                if fingerprint in seen_calls:
-                    logger.warning(
-                        "repeated tool call detected; aborting loop",
-                        extra={**_logger_extra, "tool": tc["name"], "fingerprint": fingerprint},
-                    )
-                    yield {"type": "error", "message": "repeated_tool_call"}
-                    return
-                seen_calls.add(fingerprint)
+                yield {"type": "error", "message": "repeated_tool_call"}
+                return
 
             for tc in tool_calls:
                 yield {

@@ -7,11 +7,6 @@ import os
 import uuid
 from contextlib import asynccontextmanager
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(levelname)s:\t%(name)s - %(message)s",
-)
-
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.middleware.cors import CORSMiddleware
@@ -34,6 +29,10 @@ from panvel_assistant.utils.handle_errors import (
 from panvel_assistant.utils.logger import get_logger, trace_id_var
 from panvel_assistant.utils.settings import Settings, get_settings
 
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(levelname)s:\t%(name)s - %(message)s",
+)
 logger = get_logger(__name__)
 _logger_extra = {"component.name": "App", "component.version": "v1"}
 
