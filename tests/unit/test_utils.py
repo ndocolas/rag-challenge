@@ -235,3 +235,205 @@ def test_validation_error_raised_outside_route_still_caught():
 
     with pytest.raises(ValidationError):
         Payload.model_validate({"n": "x"})
+
+
+# ---------------------------------------------------------------------------
+# Additional coverage for handle_errors, logger, main, and chat route.
+# ---------------------------------------------------------------------------
+
+
+def test_map_app_error_base_app_error_maps_to_500():
+    from panvel_assistant.utils.handle_errors import _map_app_error
+
+    status, code, _ = _map_app_error(AppError("raw error"))
+    assert status == 500
+    assert code == "internal_error"
+
+
+async def test_handle_errors_wraps_sync_function():
+    @handle_errors
+    def route():
+        return "ok"
+
+    result = await route()
+    assert result == "ok"
+
+
+async def test_app_error_handler_500_level_error():
+    from unittest.mock import MagicMock
+
+    from fastapi import Request
+
+    from panvel_assistant.utils.handle_errors import app_error_handler
+
+    req = MagicMock(spec=Request)
+    response = await app_error_handler(req, AppError("raw 500 error"))
+    assert response.status_code == 500
+    body = json.loads(response.body)
+    assert body["error"]["code"] == "internal_error"
+
+
+async def test_http_exception_handler_dict_with_error_key():
+    from unittest.mock import MagicMock
+
+    from fastapi import HTTPException, Request
+
+    from panvel_assistant.utils.handle_errors import http_exception_handler
+
+    req = MagicMock(spec=Request)
+    exc = HTTPException(status_code=400, detail={"error": {"code": "x", "status_code": 400}})
+    response = await http_exception_handler(req, exc)
+    assert response.status_code == 400
+
+
+async def test_http_exception_handler_plain_dict_detail():
+    from unittest.mock import MagicMock
+
+    from fastapi import HTTPException, Request
+
+    from panvel_assistant.utils.handle_errors import http_exception_handler
+
+    req = MagicMock(spec=Request)
+    exc = HTTPException(status_code=400, detail={"message": "bad input"})
+    response = await http_exception_handler(req, exc)
+    assert response.status_code == 400
+    body = json.loads(response.body)
+    assert body["error"]["code"] == "http_400"
+
+
+async def test_unhandled_exception_handler():
+    from unittest.mock import MagicMock
+
+    from fastapi import Request
+
+    from panvel_assistant.utils.handle_errors import unhandled_exception_handler
+
+    req = MagicMock(spec=Request)
+    response = await unhandled_exception_handler(req, RuntimeError("chaos"))
+    assert response.status_code == 500
+    body = json.loads(response.body)
+    assert body["error"]["code"] == "internal_error"
+
+
+def test_json_formatter_includes_exc_info():
+    buffer = io.StringIO()
+    handler = logging.StreamHandler(buffer)
+    handler.setFormatter(JsonFormatter())
+
+    exc_logger = logging.getLogger("panvel_assistant.test.exc_info")
+    exc_logger.handlers.clear()
+    exc_logger.addHandler(handler)
+    exc_logger.setLevel(logging.ERROR)
+    exc_logger.propagate = False
+
+    try:
+        raise ValueError("oops")
+    except ValueError:
+        exc_logger.exception("something failed")
+
+    payload = json.loads(buffer.getvalue().strip())
+    assert "exc_info" in payload
+    assert "ValueError" in payload["exc_info"]
+
+
+async def test_ready_endpoint_redis_up(monkeypatch):
+    from unittest.mock import AsyncMock
+
+    from panvel_assistant.main import app
+    from panvel_assistant.services.chat_history_service import get_history_store
+
+    monkeypatch.setattr(get_history_store(), "ping", AsyncMock(return_value=True))
+
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/ready")
+
+    assert response.status_code == 200
+    assert response.json()["redis"] == "ok"
+
+
+async def test_ready_endpoint_redis_down(monkeypatch):
+    from unittest.mock import AsyncMock
+
+    from panvel_assistant.main import app
+    from panvel_assistant.services.chat_history_service import get_history_store
+
+    monkeypatch.setattr(get_history_store(), "ping", AsyncMock(return_value=False))
+
+    transport = httpx.ASGITransport(app=app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/ready")
+
+    assert response.status_code == 503
+    assert response.json()["redis"] == "down"
+
+
+def test_create_app_allows_authorization_header():
+    from panvel_assistant.main import create_app
+
+    app_instance = create_app(Settings(GOOGLE_API_KEY="test-key", ALLOW_AUTHORIZATION_HEADER=True))
+    assert app_instance is not None
+
+
+def test_client_ip_uses_x_forwarded_for():
+    from unittest.mock import MagicMock
+
+    from panvel_assistant.routes.chat import _client_ip
+
+    req = MagicMock()
+    req.headers = {"x-forwarded-for": "203.0.113.5, 10.0.0.1"}
+    assert _client_ip(req) == "203.0.113.5"
+
+
+def test_resolve_log_level_falls_back_to_info_on_error(monkeypatch):
+    from panvel_assistant.utils.logger import _resolve_log_level
+
+    def _raise():
+        raise RuntimeError("settings unavailable")
+
+    monkeypatch.setattr("panvel_assistant.utils.settings.get_settings", _raise)
+    assert _resolve_log_level() == "INFO"
+
+
+async def test_body_size_limit_middleware_rejects_declared_oversized_request():
+    from panvel_assistant.main import BodySizeLimitMiddleware
+
+    sent: list[dict] = []
+
+    async def _mock_app(scope, receive, send):
+        pass
+
+    async def _capture_send(message):
+        sent.append(message)
+
+    middleware = BodySizeLimitMiddleware(_mock_app, max_bytes_provider=lambda: 100)
+    scope = {
+        "type": "http",
+        "method": "POST",
+        "headers": [(b"content-length", b"9999999")],
+    }
+
+    async def _mock_receive():
+        return {"type": "http.request", "body": b"x", "more_body": False}
+
+    await middleware(scope, _mock_receive, _capture_send)
+    assert sent[0]["status"] == 413
+
+
+async def test_body_size_limit_middleware_passes_through_non_http_request_message():
+    from panvel_assistant.main import BodySizeLimitMiddleware
+
+    inner_received: list[dict] = []
+
+    async def _mock_app(scope, receive, send):
+        inner_received.append(await receive())
+
+    middleware = BodySizeLimitMiddleware(_mock_app, max_bytes_provider=lambda: 100)
+    scope = {"type": "http", "method": "POST", "headers": []}
+    disconnect = {"type": "http.disconnect"}
+
+    async def _mock_receive():
+        return disconnect
+
+    await middleware(scope, _mock_receive, lambda _: None)
+    assert inner_received == [disconnect]

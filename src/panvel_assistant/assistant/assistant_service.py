@@ -49,6 +49,11 @@ _logger_extra = {"component.name": "AssistantService", "component.version": "v1"
 
 _SYSTEM_MSG = SystemMessage(content=SYSTEM_PROMPT_MVP)
 
+# Hard cap on agentic tool-calling loops per turn.  Prevents unbounded LLM
+# re-invocations when the duplicate-fingerprint guard doesn't fire (e.g. the
+# model calls the same tool with different args each time).
+MAX_TOOL_ITERATIONS = 5
+
 
 def _citations_from_tool_message(content: object) -> list[dict[str, Any]]:
     """Parse a ``buscar_bulas`` ToolMessage payload into Citation dicts.
@@ -213,6 +218,19 @@ class AssistantService:
                 ToolCallTrace(name=name, args=args, error=str(exc), latency_ms=latency),
             )
 
+    def _source_citation_events(
+        self, trace: ToolCallTrace, tool_msg: ToolMessage
+    ) -> list[dict[str, Any]]:
+        """Return a ``sources`` event list for a ``buscar_bulas`` result, or ``[]``.
+
+        Centralises the guard so ``stream_with_tools`` doesn't carry the
+        two-level ``if`` nesting (which inflates its cyclomatic complexity).
+        """
+        if trace.name != "buscar_bulas" or trace.error:
+            return []
+        citations = _citations_from_tool_message(tool_msg.content)
+        return [{"type": "sources", "citations": citations}] if citations else []
+
     def _detect_tool_loop(
         self, tool_calls: list[dict], seen_calls: set[str]
     ) -> str | None:
@@ -251,14 +269,19 @@ class AssistantService:
         - ``{"type": "error", "message": "repeated_tool_call"}`` — terminal
           event when the model calls the same tool with identical arguments
           twice in the same turn (loop detected).
+        - ``{"type": "error", "message": "max_tool_iterations_exceeded"}`` —
+          terminal event when the turn exceeds ``MAX_TOOL_ITERATIONS`` agentic
+          steps without producing a final text answer.
         """
         msgs: list[BaseMessage] = list(messages)
-        # Fingerprints of every (name, args) pair dispatched this turn.
-        # A duplicate fingerprint means the model is stuck in a loop.
-        seen_calls: set[str] = set()
         iteration = 0
 
         while True:
+            # Fingerprints of (name, args) pairs in THIS LLM response.
+            # Detects a single response that requests the same tool twice in
+            # parallel; does NOT accumulate across iterations by design — the
+            # max-iterations cap handles cross-iteration loops instead.
+            seen_calls: set[str] = set()
             ai_chunks: list[AIMessageChunk] = []
             llm_started = time.perf_counter()
 
@@ -279,7 +302,7 @@ class AssistantService:
             iteration += 1
 
             if not ai_chunks:
-                yield {"type": "done", "tokens_in": None, "tokens_out": None}
+                yield {"type": "done"}
                 return
 
             # Single-pass merge (O(N)). The naive ``reduce(+, chunks)``
@@ -325,10 +348,16 @@ class AssistantService:
                     "error": trace.error,
                     "latency_ms": trace.latency_ms,
                 }
-                if trace.name == "buscar_bulas" and not trace.error:
-                    citations = _citations_from_tool_message(tool_msg.content)
-                    if citations:
-                        yield {"type": "sources", "citations": citations}
+                for src_event in self._source_citation_events(trace, tool_msg):
+                    yield src_event
+
+            if iteration >= MAX_TOOL_ITERATIONS:
+                logger.warning(
+                    "max tool iterations exceeded; aborting turn",
+                    extra={**_logger_extra, "iteration": iteration},
+                )
+                yield {"type": "error", "message": "max_tool_iterations_exceeded"}
+                return
 
     async def handle_turn(self, req: ChatRequest) -> AsyncIterator[str]:
         """Run a full chat turn and yield SSE-encoded frames.

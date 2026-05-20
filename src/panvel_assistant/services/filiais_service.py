@@ -14,6 +14,7 @@ inspect and recover from.
 from __future__ import annotations
 
 import unicodedata
+from functools import lru_cache
 from pathlib import Path
 from typing import cast
 
@@ -34,6 +35,7 @@ logger = get_logger(__name__)
 _logger_extra = {"component.name": "FiliaisService", "component.version": "v1"}
 
 
+@lru_cache(maxsize=256)
 def _normalize(value: str) -> str:
     """Upper-case, strip whitespace, drop diacritics (NFD).
 
@@ -93,7 +95,10 @@ def _row_to_completa(row: dict) -> FilialCompleta:
     codigo = _safe_str(row.get("codigo_filial"), field="codigo_filial").strip()
     return FilialCompleta(
         codigo_filial=codigo,
-        faixa_vida=cast(FaixaVida, _safe_str(row.get("faixa_vida"), field="faixa_vida", codigo=codigo)),
+        faixa_vida=cast(
+            FaixaVida,
+            _safe_str(row.get("faixa_vida"), field="faixa_vida", codigo=codigo),
+        ),
         localidade=_safe_str(row.get("localidade"), field="localidade", codigo=codigo),
         uf=_safe_str(row.get("uf"), field="uf", codigo=codigo),
         tipo_estabelecimento=cast(

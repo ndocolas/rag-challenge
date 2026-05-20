@@ -375,10 +375,10 @@ async def test_handle_turn_emits_tokens_then_done_and_appends_history(
         )
     ]
 
-    assert len(frames) == 3
-    assert _parse_sse_text_event(frames[0]) == ("token", "Olá")
-    assert _parse_sse_text_event(frames[1]) == ("token", " mundo")
-    assert _parse_sse_event(frames[2]) == ("done", {"session_id": "s"})
+    assert len(frames) == 4
+    assert _parse_sse_text_event(frames[1]) == ("token", "Olá")
+    assert _parse_sse_text_event(frames[2]) == ("token", " mundo")
+    assert _parse_sse_event(frames[3]) == ("done", {"session_id": "s"})
 
     await _drain_pending()
     assert len(fake_history.appended) == 1
@@ -418,7 +418,7 @@ async def test_handle_turn_includes_past_history_in_llm_call(monkeypatch, fake_h
         )
     ]
 
-    assert len(frames) == 2
+    assert len(frames) == 3
     sent = captured[0]
     assert sent[0].type == "system"
     assert sent[1].content == "anterior?"
@@ -445,8 +445,8 @@ async def test_handle_turn_emits_error_event_and_skips_history_on_failure(
         )
     ]
 
-    assert len(frames) == 1
-    event_type, payload = _parse_sse_event(frames[0])
+    assert len(frames) == 2
+    event_type, payload = _parse_sse_event(frames[1])
     assert event_type == "error"
     assert payload["code"] == "stream_failed"
     assert payload["message"] == "internal error"
@@ -478,9 +478,9 @@ async def test_handle_turn_preserves_newlines_inside_token_deltas(
         )
     ]
 
-    assert _parse_sse_text_event(frames[0]) == ("token", "linha1\nlinha2")
-    assert _parse_sse_text_event(frames[1]) == ("token", "\n\nfim")
-    assert _parse_sse_event(frames[2]) == ("done", {"session_id": "s"})
+    assert _parse_sse_text_event(frames[1]) == ("token", "linha1\nlinha2")
+    assert _parse_sse_text_event(frames[2]) == ("token", "\n\nfim")
+    assert _parse_sse_event(frames[3]) == ("done", {"session_id": "s"})
 
 
 async def test_handle_turn_forwards_tool_call_and_tool_result_events(
@@ -520,12 +520,12 @@ async def test_handle_turn_forwards_tool_call_and_tool_result_events(
         )
     ]
 
-    assert len(frames) == 4
-    assert _parse_sse_event(frames[0]) == (
+    assert len(frames) == 5
+    assert _parse_sse_event(frames[1]) == (
         "tool_call",
         {"name": "buscar_filiais", "args": {"cidade": "CURITIBA"}},
     )
-    assert _parse_sse_event(frames[1]) == (
+    assert _parse_sse_event(frames[2]) == (
         "tool_result",
         {
             "name": "buscar_filiais",
@@ -534,8 +534,8 @@ async def test_handle_turn_forwards_tool_call_and_tool_result_events(
             "latency_ms": 12.5,
         },
     )
-    assert _parse_sse_text_event(frames[2]) == ("token", "Achei 3 lojas.")
-    assert _parse_sse_event(frames[3]) == ("done", {"session_id": "s"})
+    assert _parse_sse_text_event(frames[3]) == ("token", "Achei 3 lojas.")
+    assert _parse_sse_event(frames[4]) == ("done", {"session_id": "s"})
 
     await _drain_pending()
     assert fake_history.appended[0][1].content == "Achei 3 lojas."
@@ -564,10 +564,147 @@ async def test_handle_turn_terminates_on_internal_error_event(
         )
     ]
 
-    assert len(frames) == 2
-    assert _parse_sse_text_event(frames[0]) == ("token", "tentando...")
-    err_type, err_payload = _parse_sse_event(frames[1])
+    assert len(frames) == 3
+    assert _parse_sse_text_event(frames[1]) == ("token", "tentando...")
+    err_type, err_payload = _parse_sse_event(frames[2])
     assert err_type == "error"
     assert err_payload["message"] == "max_tool_iterations_exceeded"
     assert "trace_id" in err_payload
     assert fake_history.appended == []
+
+
+# ---------------------------------------------------------------------------
+# _citations_from_tool_message — unit coverage for all early-return paths.
+# ---------------------------------------------------------------------------
+
+
+def test_citations_from_tool_message_empty_string():
+    from panvel_assistant.assistant.assistant_service import _citations_from_tool_message
+
+    assert _citations_from_tool_message("") == []
+
+
+def test_citations_from_tool_message_non_string():
+    from panvel_assistant.assistant.assistant_service import _citations_from_tool_message
+
+    assert _citations_from_tool_message(None) == []
+
+
+def test_citations_from_tool_message_invalid_json():
+    from panvel_assistant.assistant.assistant_service import _citations_from_tool_message
+
+    assert _citations_from_tool_message("{not valid json{{{") == []
+
+
+def test_citations_from_tool_message_non_dict_json():
+    from panvel_assistant.assistant.assistant_service import _citations_from_tool_message
+
+    assert _citations_from_tool_message("[1, 2, 3]") == []
+
+
+def test_citations_from_tool_message_no_matches():
+    from panvel_assistant.assistant.assistant_service import _citations_from_tool_message
+
+    assert _citations_from_tool_message('{"other": "field"}') == []
+
+
+# ---------------------------------------------------------------------------
+# _detect_tool_loop — unit tests for the loop-detection helper.
+# ---------------------------------------------------------------------------
+
+
+def test_detect_tool_loop_returns_none_when_no_repeat():
+    svc = AssistantService.__new__(AssistantService)
+    seen: set[str] = set()
+    result = svc._detect_tool_loop(
+        [{"name": "buscar_bulas", "args": {"q": "x"}}], seen
+    )
+    assert result is None
+    assert len(seen) == 1
+
+
+def test_detect_tool_loop_returns_name_on_repeat():
+    svc = AssistantService.__new__(AssistantService)
+    seen: set[str] = set()
+    svc._detect_tool_loop([{"name": "noop", "args": {}}], seen)
+    result = svc._detect_tool_loop([{"name": "noop", "args": {}}], seen)
+    assert result == "noop"
+
+
+# ---------------------------------------------------------------------------
+# Parallel duplicate tool calls in a single LLM response.
+# ---------------------------------------------------------------------------
+
+
+async def test_parallel_duplicate_tool_calls_emits_repeated_error():
+    @tool_decorator("noop")
+    def noop() -> str:
+        """A no-op tool."""
+        return "{}"
+
+    class _DuplicateParallelClient:
+        async def astream(self, messages):
+            yield AIMessageChunk(
+                content="",
+                tool_call_chunks=[{"name": "noop", "args": "{}", "id": "c1", "index": 0}],
+            )
+            yield AIMessageChunk(
+                content="",
+                tool_call_chunks=[{"name": "noop", "args": "{}", "id": "c2", "index": 1}],
+            )
+
+    svc = _make_service_with(_DuplicateParallelClient(), tools_by_name={"noop": noop})
+    events = await _drain(svc)
+    assert events[-1] == {"type": "error", "message": "repeated_tool_call"}
+
+
+# ---------------------------------------------------------------------------
+# _extract_token_counts — non-dict usage_metadata path.
+# ---------------------------------------------------------------------------
+
+
+def test_extract_token_counts_with_object_metadata():
+    from panvel_assistant.assistant.assistant_service import _extract_token_counts
+
+    class _MockUsage:
+        input_tokens = 42
+        output_tokens = 17
+
+    class _MockMsg:
+        usage_metadata = _MockUsage()
+
+    tokens_in, tokens_out = _extract_token_counts(_MockMsg())
+    assert tokens_in == 42
+    assert tokens_out == 17
+
+
+async def test_execute_tool_synthesizes_missing_call_id():
+    from langchain_core.tools import tool as tool_decorator
+
+    @tool_decorator("greeter")
+    def greeter(name: str) -> str:
+        """Return a greeting."""
+        return f"hello {name}"
+
+    svc = AssistantService.__new__(AssistantService)
+    svc._tools_by_name = {"greeter": greeter}
+
+    call = {"name": "greeter", "args": {"name": "world"}, "id": ""}
+    tool_msg, trace = await svc._execute_tool(call)
+
+    assert trace.name == "greeter"
+    assert trace.error is None
+    assert tool_msg.tool_call_id != ""
+
+
+def test_citations_from_tool_message_exception_in_rag(monkeypatch):
+    from panvel_assistant.assistant.assistant_service import _citations_from_tool_message
+    from panvel_assistant.services import rag_service as rag_module
+
+    def _raise(*args, **kwargs):
+        raise RuntimeError("rag exploded")
+
+    monkeypatch.setattr(rag_module.RAGService, "citations_from_matches", staticmethod(_raise))
+
+    result = _citations_from_tool_message('{"matches": [{"text": "x"}]}')
+    assert result == []

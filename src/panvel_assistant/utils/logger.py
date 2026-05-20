@@ -1,4 +1,4 @@
-"""Text logger with trace_id injection via ContextVar.
+"""Text and JSON loggers with trace_id injection via ContextVar.
 
 Project-wide rules:
 
@@ -11,8 +11,10 @@ Project-wide rules:
 Direct ``print()`` or ``logging.getLogger()`` calls are forbidden.
 """
 
+import json
 import logging
 from contextvars import ContextVar
+from typing import Any
 
 trace_id_var: ContextVar[str] = ContextVar("trace_id", default="-")
 
@@ -33,6 +35,40 @@ class TextFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
         record.trace_id = trace_id_var.get()
         return super().format(record)
+
+
+# Standard LogRecord attributes that should not be surfaced as extra fields.
+_LOGRECORD_ATTRS: frozenset[str] = frozenset(
+    logging.LogRecord(
+        name="", level=0, pathname="", lineno=0, msg="", args=(), exc_info=None
+    ).__dict__.keys()
+    | {"message", "asctime"}
+)
+
+
+class JsonFormatter(logging.Formatter):
+    """Formats each log record as a single JSON line.
+
+    Standard fields emitted: ``timestamp``, ``level``, ``logger``,
+    ``message``, ``trace_id``.  Any ``extra`` keys passed to the logger
+    call are merged into the top-level JSON object.
+    """
+
+    def format(self, record: logging.LogRecord) -> str:
+        record.message = record.getMessage()
+        payload: dict[str, Any] = {
+            "timestamp": self.formatTime(record, self.datefmt),
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.message,
+            "trace_id": trace_id_var.get(),
+        }
+        for key, value in record.__dict__.items():
+            if key not in _LOGRECORD_ATTRS and not key.startswith("_"):
+                payload[key] = value
+        if record.exc_info:
+            payload["exc_info"] = self.formatException(record.exc_info)
+        return json.dumps(payload, default=str)
 
 
 def _resolve_log_level() -> str:
