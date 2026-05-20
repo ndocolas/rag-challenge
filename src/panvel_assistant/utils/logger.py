@@ -31,7 +31,7 @@ class TextFormatter(logging.Formatter):
         super().__init__(fmt=self._FMT)
 
     def format(self, record: logging.LogRecord) -> str:
-        record.trace_id = trace_id_var.get()  # type: ignore[attr-defined]
+        record.trace_id = trace_id_var.get()
         return super().format(record)
 
 

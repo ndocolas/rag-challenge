@@ -65,7 +65,7 @@ class RAGService:
     """Hybrid retrieval over the ``bulas_panvel`` Qdrant collection."""
 
     def __init__(self) -> None:
-        self._embedder = GoogleGenerativeAIEmbeddings(
+        self._embedder = GoogleGenerativeAIEmbeddings(  # type: ignore[call-arg]
             model=settings.GEMINI_EMBED_MODEL,
             google_api_key=settings.GOOGLE_API_KEY.get_secret_value(),
             task_type="RETRIEVAL_QUERY",
@@ -105,7 +105,7 @@ class RAGService:
                     key="patient_facing", match=MatchValue(value=True)
                 )
             )
-        return Filter(must=must) if must else None
+        return Filter(must=must) if must else None  # type: ignore[arg-type]
 
     async def _embed_dense(self, query: str) -> list[float]:
         return await self._embedder.aembed_query(query)

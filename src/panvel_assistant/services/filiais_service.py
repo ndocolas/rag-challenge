@@ -15,10 +15,17 @@ from __future__ import annotations
 
 import unicodedata
 from pathlib import Path
+from typing import cast
 
 import pandas as pd
 
-from panvel_assistant.models.filial import FilialCompleta, FilialResumo, ServicoFilial
+from panvel_assistant.models.filial import (
+    FaixaVida,
+    FilialCompleta,
+    FilialResumo,
+    ServicoFilial,
+    TipoEstabelecimento,
+)
 from panvel_assistant.utils.exceptions import InvalidRequestError, ResourceNotFoundError
 from panvel_assistant.utils.logger import get_logger
 from panvel_assistant.utils.settings import settings
@@ -86,13 +93,16 @@ def _row_to_completa(row: dict) -> FilialCompleta:
     codigo = _safe_str(row.get("codigo_filial"), field="codigo_filial").strip()
     return FilialCompleta(
         codigo_filial=codigo,
-        faixa_vida=_safe_str(row.get("faixa_vida"), field="faixa_vida", codigo=codigo),
+        faixa_vida=cast(FaixaVida, _safe_str(row.get("faixa_vida"), field="faixa_vida", codigo=codigo)),
         localidade=_safe_str(row.get("localidade"), field="localidade", codigo=codigo),
         uf=_safe_str(row.get("uf"), field="uf", codigo=codigo),
-        tipo_estabelecimento=_safe_str(
-            row.get("tipo_estabelecimento"),
-            field="tipo_estabelecimento",
-            codigo=codigo,
+        tipo_estabelecimento=cast(
+            TipoEstabelecimento,
+            _safe_str(
+                row.get("tipo_estabelecimento"),
+                field="tipo_estabelecimento",
+                codigo=codigo,
+            ),
         ),
         delivery=_bool(row.get("delivery"), field="delivery", codigo=codigo),
         metragem_area_venda=float(row["metragem_area_venda"]),

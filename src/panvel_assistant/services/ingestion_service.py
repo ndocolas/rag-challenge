@@ -181,7 +181,7 @@ class IngestionService:
     """Wires extraction → chunking → embedding → Qdrant upsert."""
 
     def __init__(self) -> None:
-        self._embedder = GoogleGenerativeAIEmbeddings(
+        self._embedder = GoogleGenerativeAIEmbeddings(  # type: ignore[call-arg]
             model=settings.GEMINI_EMBED_MODEL,
             google_api_key=settings.GOOGLE_API_KEY.get_secret_value(),
             task_type="RETRIEVAL_DOCUMENT",
