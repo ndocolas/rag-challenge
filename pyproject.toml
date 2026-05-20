@@ -15,7 +15,14 @@ dependencies = [
     "python-dotenv>=1.0",
     "langchain-core>=0.3",
     "langchain-google-genai>=2.0",
+    "langchain>=0.3",
     "redis>=5.2",
+    "pandas>=2.2",
+    "pyarrow>=18.0",
+    "pdfplumber>=0.11",
+    "qdrant-client>=1.12",
+    "fastembed>=0.4",
+    "langchain-text-splitters>=0.3",
 ]
 
 [dependency-groups]
@@ -27,6 +34,7 @@ dev = [
     "httpx>=0.27",
     "asgi-lifespan>=2.1",
     "fakeredis>=2.26",
+    "mypy>=1.13",
 ]
 
 [build-system]
@@ -38,14 +46,39 @@ line-length = 100
 target-version = "py312"
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "RUF"]
+# E/W/F = base; I/N/UP/B/SIM/RUF = idioms & modern Python.
+# ASYNC = trio/async pitfalls; TID = ban old-style relative imports; C90 = mccabe.
+select = ["E", "F", "I", "N", "W", "UP", "B", "SIM", "RUF", "ASYNC", "TID", "C90"]
 ignore = ["D100", "D104"]
+
+[tool.ruff.lint.mccabe]
+max-complexity = 12
+
+[tool.ruff.lint.flake8-tidy-imports]
+ban-relative-imports = "all"
 
 [tool.ruff.lint.per-file-ignores]
 "__init__.py" = ["F401"]
 "tests/**/*.py" = ["B017", "S101"]
+# FastAPI's recommended idiom uses Depends() in argument defaults; B008 fires
+# false positives there. Route modules are the only place we accept this.
+"src/panvel_assistant/routes/*.py" = ["B008"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-addopts = "--cov=panvel_assistant --cov-report=term-missing --cov-fail-under=70"
+addopts = "--cov=panvel_assistant --cov-report=term-missing --cov-fail-under=90"
+markers = [
+    "integration: end-to-end tests that hit external services (Qdrant, Gemini)",
+]
+
+[tool.mypy]
+python_version = "3.12"
+strict = false
+ignore_missing_imports = true
+disallow_untyped_defs = false
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_return_any = false
+no_implicit_optional = true
+files = ["src/panvel_assistant"]

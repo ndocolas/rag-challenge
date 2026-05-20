@@ -20,7 +20,7 @@ from panvel_assistant.utils.exceptions import (
 from panvel_assistant.utils.handle_errors import handle_errors
 from panvel_assistant.utils.logger import JsonFormatter, get_logger, trace_id_var
 from panvel_assistant.utils.settings import Settings
-from panvel_assistant.utils.sse import encode_event
+from panvel_assistant.utils.sse import encode_event, encode_text_event
 
 
 def test_settings_load_from_env(monkeypatch):
@@ -31,7 +31,8 @@ def test_settings_load_from_env(monkeypatch):
 
     cfg = Settings(_env_file=None)  # type: ignore[call-arg]
 
-    assert cfg.GOOGLE_API_KEY == "abc-123"
+    assert cfg.GOOGLE_API_KEY.get_secret_value() == "abc-123"
+    assert "abc-123" not in repr(cfg)  # SecretStr keeps the key out of dumps
     assert cfg.QDRANT_URL == "http://qdrant.example:6333"
     assert cfg.ENV == "staging"
     assert cfg.GEMINI_CHAT_MODEL == "gemini-2.0-flash"
@@ -46,7 +47,11 @@ async def test_handle_errors_resource_not_found():
         await route()
 
     assert exc_info.value.status_code == 404
-    assert "leaflet not found" in exc_info.value.detail
+    detail = exc_info.value.detail
+    assert detail["error"]["code"] == "not_found"
+    assert detail["error"]["message"] == "leaflet not found"
+    assert detail["error"]["status_code"] == 404
+    assert "trace_id" in detail["error"]
 
 
 async def test_handle_errors_invalid_request():
@@ -58,9 +63,18 @@ async def test_handle_errors_invalid_request():
         await route()
 
     assert exc_info.value.status_code == 400
+    assert exc_info.value.detail["error"]["code"] == "invalid_request"
 
 
-async def test_handle_errors_validation_error():
+async def test_handle_errors_wraps_unexpected_exceptions_as_internal_error():
+    """Non-AppError, non-HTTPException raises become an opaque 500 envelope.
+
+    Pydantic ``ValidationError`` raised inside a handler is a programmer
+    bug (FastAPI validates request models *before* the handler runs and emits
+    422 via ``RequestValidationError``). The decorator should not leak field
+    details for these.
+    """
+
     class Payload(BaseModel):
         n: int
 
@@ -71,19 +85,37 @@ async def test_handle_errors_validation_error():
     with pytest.raises(HTTPException) as exc_info:
         await route()
 
-    assert exc_info.value.status_code == 422
-    assert isinstance(exc_info.value.detail, list)
+    assert exc_info.value.status_code == 500
+    assert exc_info.value.detail["error"]["code"] == "internal_error"
 
 
-async def test_handle_errors_provider_error_is_503():
+async def test_handle_errors_provider_error_is_503_and_redacted():
     @handle_errors
     async def route():
-        raise LLMProviderError("gemini timeout")
+        raise LLMProviderError("gemini internal URL https://api.example/x?key=abc")
 
     with pytest.raises(HTTPException) as exc_info:
         await route()
 
     assert exc_info.value.status_code == 503
+    # Internal details must NOT leak to the client payload.
+    detail = exc_info.value.detail
+    assert detail["error"]["code"] == "upstream_unavailable"
+    assert "api.example" not in detail["error"]["message"]
+
+
+async def test_handle_errors_session_busy_is_409():
+    from panvel_assistant.utils.exceptions import SessionBusyError
+
+    @handle_errors
+    async def route():
+        raise SessionBusyError("session 'abc' already has a turn in flight")
+
+    with pytest.raises(HTTPException) as exc_info:
+        await route()
+
+    assert exc_info.value.status_code == 409
+    assert exc_info.value.detail["error"]["code"] == "session_busy"
 
 
 async def test_handle_errors_unexpected_error_is_500():
@@ -95,6 +127,7 @@ async def test_handle_errors_unexpected_error_is_500():
         await route()
 
     assert exc_info.value.status_code == 500
+    assert exc_info.value.detail["error"]["code"] == "internal_error"
 
 
 def test_logger_emits_json_with_trace_id():
@@ -141,6 +174,22 @@ def test_sse_encode_event_unicode():
     assert "olá" in out
     assert out.startswith("event: done\n")
     assert out.endswith("\n\n")
+
+
+def test_sse_encode_text_event_normalizes_crlf():
+    """LLMs may emit \\r\\n line endings; the SSE frame must collapse them.
+
+    Per the SSE spec each of \\r, \\n, \\r\\n is a line terminator, so leaving a
+    bare \\r in the data field splits the frame on the client side.
+    """
+    out = encode_text_event("token", "linha1\r\nlinha2\rfim")
+    assert "\r" not in out
+    assert out == "event: token\ndata: linha1\ndata: linha2\ndata: fim\n\n"
+
+
+def test_sse_encode_text_event_empty_string():
+    out = encode_text_event("token", "")
+    assert out == "event: token\ndata: \n\n"
 
 
 def test_exceptions_hierarchy():

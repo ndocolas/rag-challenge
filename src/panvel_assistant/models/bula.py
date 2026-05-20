@@ -43,6 +43,8 @@ class BulaMetadata(BaseModel):
     chunk_idx: int
     source_page: int | None = None
     patient_facing: bool
+    is_full_section: bool = True
+    section_char_len: int = 0
 
 
 class BulaChunk(BaseModel):

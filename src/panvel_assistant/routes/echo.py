@@ -1,19 +1,26 @@
-"""Demo routes that exercise the Pydantic schemas through FastAPI.
+"""Demo echo route — exercises Pydantic models end-to-end.
 
-These endpoints are smoke/fixture routes: they prove that the models validate
-end-to-end and serve as targets for the ``.rest`` files. They will be replaced
-by real routes in upcoming tasks (e.g. Task 03 — ``/v1/chat`` with SSE).
+This endpoint is a smoke/fixture target left from the early bootstrap; the
+production-facing surface is :mod:`panvel_assistant.routes.chat`. Marked as
+deprecated via the ``Deprecation`` header so any consumer pinned to it gets a
+clear signal before it is removed.
 """
 
-from fastapi import APIRouter
+from __future__ import annotations
+
+from fastapi import APIRouter, Response
 
 from panvel_assistant.models.chat import ChatMessage, ChatRequest
 from panvel_assistant.utils.handle_errors import handle_errors
 
-router = APIRouter(prefix="/v1/echo", tags=["echo"])
+router = APIRouter(prefix="/v1/echo", tags=["echo"], deprecated=True)
 
 
 @router.post("/chat", response_model=ChatMessage)
 @handle_errors
-async def echo_chat(req: ChatRequest) -> ChatMessage:
+async def echo_chat(req: ChatRequest, response: Response) -> ChatMessage:
+    """Echo back the user's message; deprecated, kept for backwards compat."""
+    response.headers["Deprecation"] = "true"
+    response.headers["Sunset"] = "Wed, 01 Jul 2026 00:00:00 GMT"
+    response.headers["Link"] = '</chat>; rel="successor-version"'
     return ChatMessage(role="assistant", content=f"echo: {req.message}")

@@ -1,92 +1,66 @@
-"""Structured JSON logger with trace_id injection via ContextVar.
+"""Text logger with trace_id injection via ContextVar.
 
-Project-wide rule:
+Project-wide rules:
 
     from panvel_assistant.utils.logger import get_logger
     logger = get_logger(__name__)
+    _logger_extra = {"component.name": "MyModule", "component.version": "v1"}
 
-Direct ``print()`` or ``logging.getLogger()`` calls are forbidden. Logs must
-always be structured through ``extra={...}``.
+    logger.info("something happened", extra=_logger_extra)
+
+Direct ``print()`` or ``logging.getLogger()`` calls are forbidden.
 """
 
-import json
 import logging
-import os
 from contextvars import ContextVar
-from datetime import UTC, datetime
-from typing import Any
 
 trace_id_var: ContextVar[str] = ContextVar("trace_id", default="-")
 
-# Standard LogRecord attributes. Any key in record.__dict__ outside this set
-# came from the logger call's `extra={...}` argument and is promoted to a
-# top-level field in the emitted JSON.
-_STANDARD_LOG_ATTRS = frozenset(
-    {
-        "args",
-        "asctime",
-        "created",
-        "exc_info",
-        "exc_text",
-        "filename",
-        "funcName",
-        "levelname",
-        "levelno",
-        "lineno",
-        "message",
-        "module",
-        "msecs",
-        "msg",
-        "name",
-        "pathname",
-        "process",
-        "processName",
-        "relativeCreated",
-        "stack_info",
-        "taskName",
-        "thread",
-        "threadName",
-    }
-)
 
+class TextFormatter(logging.Formatter):
+    """Formats each log record as a human-readable text line with trace_id.
 
-class JsonFormatter(logging.Formatter):
-    """Serializes each LogRecord as a single structured JSON line."""
+    Injects the current ``trace_id_var`` value into the record so it can be
+    referenced as ``%(trace_id)s`` in the format string without callers having
+    to pass it explicitly.
+    """
+
+    _FMT = "%(asctime)s %(levelname)s [%(name)s] [%(filename)s:%(lineno)d] [trace=%(trace_id)s] - %(message)s"  # noqa: E501
+
+    def __init__(self) -> None:
+        super().__init__(fmt=self._FMT)
 
     def format(self, record: logging.LogRecord) -> str:
-        """Render the LogRecord as JSON with an ISO-8601 UTC timestamp."""
-        payload: dict[str, Any] = {
-            "timestamp": datetime.fromtimestamp(record.created, tz=UTC).isoformat(),
-            "level": record.levelname,
-            "logger": record.name,
-            "message": record.getMessage(),
-            "trace_id": trace_id_var.get(),
-        }
+        record.trace_id = trace_id_var.get()  # type: ignore[attr-defined]
+        return super().format(record)
 
-        if record.exc_info:
-            payload["exc_info"] = self.formatException(record.exc_info)
-        if record.stack_info:
-            payload["stack_info"] = record.stack_info
 
-        for key, value in record.__dict__.items():
-            if key in _STANDARD_LOG_ATTRS or key.startswith("_"):
-                continue
-            payload[key] = value
+def _resolve_log_level() -> str:
+    """Read the configured log level from ``Settings``, with a safe fallback.
 
-        return json.dumps(payload, ensure_ascii=False, default=str)
+    Imports are deferred so this module can be used during early bootstrap
+    (e.g. logging from inside ``Settings`` itself) without a circular import.
+    """
+    try:
+        from panvel_assistant.utils.settings import get_settings
+
+        return get_settings().LOG_LEVEL
+    except Exception:
+        return "INFO"
 
 
 def get_logger(name: str) -> logging.Logger:
-    """Return a logger with a single JSON handler, isolated from the root logger.
+    """Return a logger with a single text handler, isolated from the root logger.
 
     Idempotent: subsequent calls for the same ``name`` reuse the already-configured
-    handler, preventing duplicate log lines.
+    handler, preventing duplicate log lines. Reads ``LOG_LEVEL`` from the
+    centralized ``Settings`` so the env value is parsed in exactly one place.
     """
     logger = logging.getLogger(name)
     if not getattr(logger, "_panvel_configured", False):
-        logger.setLevel(os.getenv("LOG_LEVEL", "INFO"))
+        logger.setLevel(_resolve_log_level())
         handler = logging.StreamHandler()
-        handler.setFormatter(JsonFormatter())
+        handler.setFormatter(TextFormatter())
         logger.addHandler(handler)
         logger.propagate = False
         logger._panvel_configured = True  # type: ignore[attr-defined]

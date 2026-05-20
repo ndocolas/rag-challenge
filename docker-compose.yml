@@ -12,6 +12,39 @@ services:
       retries: 5
       start_period: 3s
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 256M
+
+  qdrant:
+    image: qdrant/qdrant:v1.13.0
+    container_name: panvel-qdrant
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_data:/qdrant/storage
+    healthcheck:
+      test:
+        - CMD
+        - bash
+        - -c
+        - >-
+          exec 3<>/dev/tcp/localhost/6333 &&
+          printf 'GET /readyz HTTP/1.0\r\nHost: localhost\r\n\r\n' >&3 &&
+          read -r status <&3 &&
+          [[ "$$status" == *200* ]]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 1024M
 
   backend:
     build:
@@ -23,19 +56,52 @@ services:
         required: false
     environment:
       REDIS_URL: redis://redis:6379/0
+      QDRANT_URL: http://qdrant:6333
     depends_on:
       redis:
+        condition: service_healthy
+      qdrant:
         condition: service_healthy
     ports:
       - "8000:8000"
     healthcheck:
+      # Lightweight: short timeout, fails fast so the orchestrator can react.
       test:
         - CMD
         - python
         - -c
-        - "import urllib.request, sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health').status == 200 else 1)"
+        - >-
+          import urllib.request, sys;
+          sys.exit(0 if urllib.request.urlopen('http://localhost:8000/health',
+            timeout=2).status == 200 else 1)
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 10s
     restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "1.0"
+          memory: 512M
+
+  ingest:
+    build:
+      context: .
+    container_name: panvel-ingest
+    profiles: ["ingest"]
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      QDRANT_URL: http://qdrant:6333
+      REDIS_URL: redis://redis:6379/0
+    depends_on:
+      qdrant:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+    command: ["python", "scripts/ingest_bulas.py", "--rebuild"]
+
+volumes:
+  qdrant_data:

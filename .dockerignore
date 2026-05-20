@@ -42,7 +42,12 @@ docker-compose.*.yml
 tests
 tasks
 requests
-data
 frontend
 node_modules
 *.log
+
+# Data: bake the small lookup file into the image (used by the filiais tools)
+# but leave the bulky PDF corpus out — it's mounted via a volume.
+data/*
+!data/filiais.parquet
+!data/dicionario_dados.xlsx
