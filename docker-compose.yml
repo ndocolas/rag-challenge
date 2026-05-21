@@ -85,6 +85,24 @@ services:
           cpus: "1.0"
           memory: 512M
 
+  frontend:
+    build:
+      context: ./frontend
+    container_name: panvel-frontend
+    environment:
+      VITE_API_URL: http://localhost:8000
+    ports:
+      - "5173:5173"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          cpus: "0.5"
+          memory: 512M
+
   ingest:
     build:
       context: .
