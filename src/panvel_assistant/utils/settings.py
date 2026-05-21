@@ -40,7 +40,7 @@ class Settings(BaseSettings):
 
     # LLM
     GOOGLE_API_KEY: SecretStr
-    GEMINI_CHAT_MODEL: str = "gemini-2.0-flash"
+    GEMINI_CHAT_MODEL: str = "gemini-3-flash-preview"
     GEMINI_EMBED_MODEL: str = "gemini-embedding-001"
     GEMINI_MAX_OUTPUT_TOKENS: int = Field(1024, ge=64, le=8192)
     GEMINI_TIMEOUT_SECONDS: float = Field(60.0, ge=1.0, le=600.0)

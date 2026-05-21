@@ -7,7 +7,7 @@ Assistente LLM para informação farmacológica (RAG sobre 20 bulas Anvisa) e co
 | Camada | Tecnologia |
 |---|---|
 | Backend | Python 3.12 + FastAPI + uv |
-| LLM + Embeddings | Gemini (`gemini-2.0-flash` + `gemini-embedding-001`) via LangChain |
+| LLM + Embeddings | Gemini (`gemini-3-flash-preview` + `gemini-embedding-001`) via LangChain |
 | Vector store | Qdrant v1.13.0 (dense + BM25 hybrid, RRF) |
 | Memória | Redis 7 |
 | Observabilidade | LangSmith + logs JSON |

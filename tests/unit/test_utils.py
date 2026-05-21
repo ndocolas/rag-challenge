@@ -27,7 +27,7 @@ def test_settings_load_from_env(monkeypatch):
     monkeypatch.setenv("GOOGLE_API_KEY", "abc-123")
     monkeypatch.setenv("QDRANT_URL", "http://qdrant.example:6333")
     monkeypatch.setenv("ENV", "staging")
-    monkeypatch.setenv("GEMINI_CHAT_MODEL", "gemini-2.0-flash")
+    monkeypatch.setenv("GEMINI_CHAT_MODEL", "gemini-3-flash-preview")
 
     cfg = Settings(_env_file=None)  # type: ignore[call-arg]
 
@@ -35,7 +35,7 @@ def test_settings_load_from_env(monkeypatch):
     assert "abc-123" not in repr(cfg)  # SecretStr keeps the key out of dumps
     assert cfg.QDRANT_URL == "http://qdrant.example:6333"
     assert cfg.ENV == "staging"
-    assert cfg.GEMINI_CHAT_MODEL == "gemini-2.0-flash"
+    assert cfg.GEMINI_CHAT_MODEL == "gemini-3-flash-preview"
 
 
 async def test_handle_errors_resource_not_found():

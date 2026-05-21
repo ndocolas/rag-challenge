@@ -26,7 +26,7 @@ Alternativas avaliadas:
 
 Usar **Google Gemini** como provedor único:
 
-- Chat: `gemini-2.0-flash` (`temperature=0.2`, streaming habilitado)
+- Chat: `gemini-3-flash-preview` (`temperature=0.2`, streaming habilitado)
 - Embeddings: `gemini-embedding-001` (3072 dimensões, task types `RETRIEVAL_DOCUMENT` / `RETRIEVAL_QUERY`)
 - Integração via **LangChain** (`ChatGoogleGenerativeAI` + `GoogleGenerativeAIEmbeddings`)
 
@@ -41,4 +41,4 @@ Usar **Google Gemini** como provedor único:
 **Negativas / trade-offs:**
 - Dependência de um único provedor externo (disponibilidade e rate limits do Google)
 - Embeddings 3072-dim vs 1536-dim do OpenAI: vetor maior, mas corpus pequeno não é gargalo
-- `gemini-2.0-flash` não é o modelo mais capaz da família; aceitável para o escopo
+- `gemini-3-flash-preview` não é o modelo mais capaz da família; aceitável para o escopo
