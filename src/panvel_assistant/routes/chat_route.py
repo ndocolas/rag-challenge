@@ -29,7 +29,6 @@ from panvel_assistant.services.chat_history_service import (
     get_history_store,
 )
 from panvel_assistant.utils.exceptions import RateLimitedError
-from panvel_assistant.utils.handle_errors import handle_errors
 from panvel_assistant.utils.logger import get_logger
 from panvel_assistant.utils.settings import Settings, get_settings
 
@@ -48,7 +47,6 @@ def _client_ip(request: Request) -> str:
 
 
 @router.post("/chat")
-@handle_errors
 async def chat(
     request: Request,
     req: ChatRequest,
