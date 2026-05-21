@@ -19,6 +19,7 @@ import secrets
 import time
 from collections.abc import Sequence
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from functools import lru_cache
 from urllib.parse import urlsplit, urlunsplit
 
@@ -272,6 +273,50 @@ class RedisHistoryStore:
         if self._client is None:
             raise RuntimeError("RedisHistoryStore not connected")
         return self._client
+
+    _SESSIONS_INDEX_KEY = "sessions:meta"
+
+    async def save_session_meta(self, session_id: str, title: str) -> None:
+        """Persist session metadata on first turn only (idempotent via NX flag).
+
+        Storage layout:
+        - Sorted set ``sessions:meta``: score=Unix timestamp, member=session_id
+        - Hash ``sessions:data:{session_id}``: title, created_at, session_id fields
+        Both keys share the chat history TTL so stale sessions auto-expire.
+        """
+        flag_key = f"sessions:meta:{session_id}"
+        is_new = await self.client.set(
+            flag_key, "1", nx=True, ex=self._settings.CHAT_HISTORY_TTL_SECONDS
+        )
+        if not is_new:
+            return
+        now = datetime.now(UTC)
+        async with self.client.pipeline(transaction=False) as pipe:
+            pipe.zadd(self._SESSIONS_INDEX_KEY, {session_id: now.timestamp()})
+            pipe.hset(
+                f"sessions:data:{session_id}",
+                mapping={
+                    "session_id": session_id,
+                    "title": title[:60],
+                    "created_at": now.isoformat(),
+                },
+            )
+            pipe.expire(f"sessions:data:{session_id}", self._settings.CHAT_HISTORY_TTL_SECONDS)
+            await pipe.execute()
+
+    async def list_sessions(self) -> list[dict]:
+        """Return all known sessions sorted newest-first.
+
+        Sessions whose data hash has expired (TTL elapsed) are skipped silently —
+        the frontend handles 404 on history load by removing the stale entry.
+        """
+        session_ids: list[str] = await self.client.zrevrange(self._SESSIONS_INDEX_KEY, 0, -1)
+        result: list[dict] = []
+        for sid in session_ids:
+            data = await self.client.hgetall(f"sessions:data:{sid}")  # type: ignore[misc]
+            if data:
+                result.append(data)
+        return result
 
     async def rate_limit_check(
         self,

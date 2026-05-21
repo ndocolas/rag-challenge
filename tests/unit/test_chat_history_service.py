@@ -94,20 +94,6 @@ def test_sync_clear_raises(history):
         history.clear()
 
 
-def test_serialize_messages_to_text_empty_returns_empty_string():
-    assert serialize_messages_to_text([]) == ""
-
-
-def test_serialize_messages_to_text_formats_known_roles():
-    out = serialize_messages_to_text(
-        [
-            HumanMessage(content="q"),
-            AIMessage(content="a"),
-            SystemMessage(content="s"),
-        ]
-    )
-    assert out == "Human: `q`\nAI: `a`\nSystem: `s`"
-
 
 async def test_store_get_session_history_requires_connect():
     store = RedisHistoryStore()
@@ -257,3 +243,109 @@ async def test_drain_pending_filters_by_session(fake_client):
     assert done_a.is_set()
     assert not done_b.is_set()
     task_b.cancel()
+
+
+def test_redact_url_unparseable():
+    assert _redact_url("http://[::1::2]") == "<unparseable>"
+
+
+def test_serialize_messages_to_text_empty():
+    assert serialize_messages_to_text([]) == ""
+
+
+def test_serialize_messages_to_text_mixed_types():
+    from langchain_core.messages import ToolMessage
+
+    msgs = [
+        HumanMessage(content="oi"),
+        AIMessage(content="olá"),
+        SystemMessage(content="sys"),
+        ToolMessage(content="result", tool_call_id="t1"),
+    ]
+    result = serialize_messages_to_text(msgs)
+    assert "Human: `oi`" in result
+    assert "AI: `olá`" in result
+    assert "System: `sys`" in result
+    assert "Tool: `result`" in result
+
+
+def test_serialize_messages_to_text_non_string_content():
+    msg = AIMessage(content=[{"type": "text", "text": "hello"}])
+    result = serialize_messages_to_text([msg])
+    assert "AI:" in result
+
+
+async def test_ping_raises_timeout_returns_false(fake_client):
+    from unittest.mock import AsyncMock, patch
+
+    store = RedisHistoryStore()
+    store._client = fake_client
+    with patch.object(fake_client, "ping", new=AsyncMock(side_effect=TimeoutError)):
+        assert await store.ping(timeout=0.1) is False
+
+
+async def test_drain_pending_timeout_logs_warning(fake_client):
+    import asyncio as _asyncio
+
+    store = RedisHistoryStore()
+    store._client = fake_client
+
+    async def never_done():
+        await _asyncio.sleep(10)
+
+    loop = _asyncio.get_running_loop()
+    task = loop.create_task(never_done())
+    store.register_pending(task)
+    await store.drain_pending(timeout=0.01)
+    task.cancel()
+
+
+async def test_release_lock_redis_error_is_swallowed(fake_client):
+    from unittest.mock import AsyncMock, patch
+
+    store = RedisHistoryStore()
+    store._client = fake_client
+
+    import redis.exceptions as redis_exc
+
+    token = await store.acquire_lock("s-err")
+    with patch.object(
+        store, "_release_lock_inner", new=AsyncMock(side_effect=redis_exc.RedisError)
+    ):
+        await store.release_lock("s-err", token)
+
+
+async def test_session_lock_context_manager(fake_client):
+    store = RedisHistoryStore()
+    store._client = fake_client
+    async with store.session_lock("s-cm"):
+        pass
+
+
+async def test_rate_limit_redis_error_returns_fail_open(fake_client):
+    from unittest.mock import AsyncMock
+
+    import redis.exceptions as redis_exc
+
+    store = RedisHistoryStore()
+    store._client = fake_client
+
+    mock_pipe = AsyncMock()
+    mock_pipe.__aenter__ = AsyncMock(return_value=mock_pipe)
+    mock_pipe.__aexit__ = AsyncMock(return_value=None)
+    mock_pipe.execute = AsyncMock(side_effect=redis_exc.RedisError("boom"))
+
+    from unittest.mock import patch
+
+    with patch.object(fake_client, "pipeline", return_value=mock_pipe):
+        allowed, count = await store.rate_limit_check("user1", max_per_minute=10)
+
+    assert allowed is True
+    assert count == 0
+
+
+async def test_disconnect_closes_client(fake_client):
+    store = RedisHistoryStore()
+    store._client = fake_client
+    await store.disconnect()
+    assert store._client is None

@@ -176,7 +176,7 @@ def test_real_parquet_values_satisfy_model_literals():
     """Load the production parquet and assert the Pydantic models accept every row."""
     from typing import get_args
 
-    from panvel_assistant.models.filial import FaixaVida, TipoEstabelecimento
+    from panvel_assistant.models.filial_models import FaixaVida, TipoEstabelecimento
     from panvel_assistant.utils.settings import get_settings
 
     parquet = get_settings().FILIAIS_PARQUET

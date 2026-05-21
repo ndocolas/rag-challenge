@@ -12,7 +12,7 @@ import time
 
 from langchain_core.tools import tool
 
-from panvel_assistant.models.tool import (
+from panvel_assistant.models.tool_models import (
     BuscarBulasInput,
     BuscarFiliaisInput,
     BuscarFiliaisOutput,
@@ -56,21 +56,21 @@ def build_tools(
         min_metragem: float | None = None,
         limit: int = 10,
     ) -> str:
-        """Busca filiais Panvel no Paraná aplicando filtros opcionais.
+        """Search Panvel branches in Paraná applying optional filters.
 
-        Use esta tool quando o usuário quiser encontrar lojas que atendam critérios
-        como: cidade específica, serviços (panvel_clinic / delivery / estacionamento /
-        atendimento_24_horas), tipo (BAIRRO / CENTRO / SHOPPING / MALL / SUPERMERCADO),
-        faixa de operação, ou metragem mínima.
+        Use this tool when the user wants to find stores that match criteria
+        such as: specific city, services (panvel_clinic / delivery / estacionamento /
+        atendimento_24_horas), type (BAIRRO / CENTRO / SHOPPING / MALL / SUPERMERCADO),
+        operating range, or minimum floor area.
 
-        Retorna lista resumida. Para detalhes completos de uma filial específica, use
+        Returns a summarized list. For full details of a specific branch, use
         detalhes_filial(codigo_filial).
         """
         started = time.perf_counter()
         try:
             total, filiais = filiais_service.buscar(
                 cidade=cidade,
-                servicos=servicos,  # type: ignore[arg-type]
+                servicos=servicos,
                 tipo_estabelecimento=tipo_estabelecimento,
                 faixa_vida=faixa_vida,
                 min_metragem=min_metragem,
@@ -83,7 +83,7 @@ def build_tools(
             if str(exc).startswith("cidade_nao_encontrada:"):
                 return ToolErrorPayload(
                     error="cidade_nao_encontrada",
-                    message=f"'{cidade}' não está no Paraná atendido pela Panvel.",
+                    message=f"'{cidade}' is not in the Paraná region served by Panvel.",
                     hint={"cidades_disponiveis": filiais_service.listar_cidades()},
                 ).model_dump_json()
             raise
@@ -100,10 +100,10 @@ def build_tools(
 
     @tool("detalhes_filial", args_schema=DetalhesFilialInput)
     def detalhes_filial(codigo_filial: str) -> str:
-        """Retorna o cadastro completo de uma filial específica pelo código.
+        """Return the full record of a specific branch by its code.
 
-        Use depois que o usuário identificar uma filial (via buscar_filiais) e quiser
-        detalhes adicionais (metragem, todos os serviços, faixa de vida, etc.).
+        Use after the user has identified a branch (via buscar_filiais) and wants
+        additional details (floor area, all services, operating range, etc.).
         """
         started = time.perf_counter()
         try:
@@ -112,8 +112,8 @@ def build_tools(
         except ResourceNotFoundError:
             return ToolErrorPayload(
                 error="codigo_invalido",
-                message=f"Filial '{codigo_filial}' não existe no cadastro.",
-                hint={"sugestao": "use buscar_filiais para listar códigos válidos"},
+                message=f"Branch '{codigo_filial}' does not exist in the registry.",
+                hint={"sugestao": "use buscar_filiais to list valid codes"},
             ).model_dump_json()
         finally:
             logger.info(
@@ -128,10 +128,10 @@ def build_tools(
 
     @tool("listar_cidades_atendidas")
     def listar_cidades_atendidas() -> str:
-        """Lista todas as cidades do Paraná onde existem filiais Panvel.
+        """List all cities in Paraná where Panvel branches exist.
 
-        Use ANTES de buscar_filiais quando o usuário mencionar uma cidade que pode
-        não estar coberta — esta tool confirma o escopo.
+        Use BEFORE buscar_filiais when the user mentions a city that may
+        not be covered — this tool confirms the scope.
         """
         started = time.perf_counter()
         cidades = filiais_service.listar_cidades()
@@ -150,74 +150,76 @@ def build_tools(
     async def buscar_bulas(
         query: str,
         med_name: str | None = None,
+        med_variant: str | None = None,
         section_hint: str | None = None,
         patient_facing_only: bool = True,
         k: int = 4,
     ) -> str:
-        """Recupera trechos das bulas Anvisa indexadas via hybrid search.
+        """Retrieve excerpts from indexed Anvisa package inserts via hybrid search.
 
-        PRÉ-REQUISITO OBRIGATÓRIO
-            SEMPRE chame ``listar_medicamentos_disponiveis`` ANTES desta tool
-            para obter o nome canônico correto. Confirme o nome exato na lista
-            antes de passar ``med_name`` — o usuário frequentemente usa apelidos
-            ou nomes parciais.
+        MANDATORY PREREQUISITE
+            ALWAYS call ``listar_medicamentos_disponiveis`` BEFORE this tool
+            to obtain the correct canonical name. Confirm the exact name in the list
+            before passing ``med_name`` — users frequently use nicknames
+            or partial names.
 
-        QUANDO USAR
-            Sempre que a pergunta for sobre medicamentos: indicação, posologia,
-            dose, contraindicação, reação adversa, interação, armazenamento,
-            mecanismo, superdose, esquecimento de dose. Chame esta tool para
-            toda pergunta farmacológica.
+        WHEN TO USE
+            Whenever the question is about medications: indication, dosage,
+            dose, contraindication, adverse reaction, interaction, storage,
+            mechanism, overdose, missed dose. Call this tool for
+            every pharmacological question.
 
-        ARGUMENTOS
-        - ``query``: pergunta/termos em português. Pode ser a pergunta inteira
-          do usuário ou termos-chave.
-        - ``med_name`` (opcional): nome do medicamento como o usuário citou
-          (ex.: "Ritalina", "Losartana"). Aplica MATCH EXATO contra o nome
-          canônico do payload. Se o usuário usou apelido/nome parcial, prefira
-          o nome canônico (rode ``listar_medicamentos_disponiveis`` se estiver
-          em dúvida).
-        - ``section_hint`` (opcional): use quando o intent for claro:
-            posologia / dose / como tomar  -> IAP_6_POSOLOGIA
-            reações / efeitos colaterais   -> IAP_8_REACOES_ADVERSAS
-            contraindicações / não usar    -> IAP_3_CONTRAINDICACOES
-            interações                     -> IT_INTERACOES_MEDICAMENTOSAS
-            armazenamento / como guardar   -> IAP_5_ARMAZENAMENTO
-            indicação / para que serve     -> IAP_1_INDICACOES
-            esqueci uma dose               -> IAP_7_ESQUECIMENTO_DOSE
-            superdose / overdose           -> IAP_9_SUPERDOSE
-            mecanismo / como funciona      -> IAP_2_MECANISMO
-        - ``patient_facing_only`` (default true): restringe a seções IAP_*
-          (linguagem ao paciente). Mantenha true para perguntas do paciente;
-          passe false quando o usuário declarar ser profissional de saúde ou
-          pedir informação técnica.
-        - ``k`` (default 4, max 10): nº de chunks após dedup.
+        ARGUMENTS
+        - ``query``: question/terms in the user's language. Can be the full user
+          question or key terms.
+        - ``med_name`` (optional): medication name as the user cited it
+          (e.g. "Ritalin", "Losartan"). Applies EXACT MATCH against the
+          canonical name in the payload. If the user used a nickname/partial name,
+          prefer the canonical name (run ``listar_medicamentos_disponiveis`` if
+          unsure).
+        - ``section_hint`` (optional): use when intent is clear:
+            dosage / dose / how to take    -> IAP_6_POSOLOGIA
+            reactions / side effects       -> IAP_8_REACOES_ADVERSAS
+            contraindications / do not use -> IAP_3_CONTRAINDICACOES
+            interactions                   -> IT_INTERACOES_MEDICAMENTOSAS
+            storage / how to store         -> IAP_5_ARMAZENAMENTO
+            indication / what it's for     -> IAP_1_INDICACOES
+            missed a dose                  -> IAP_7_ESQUECIMENTO_DOSE
+            overdose                       -> IAP_9_SUPERDOSE
+            mechanism / how it works       -> IAP_2_MECANISMO
+        - ``patient_facing_only`` (default true): restricts to IAP_* sections
+          (patient-language). Keep true for patient questions; pass false when
+          the user declares being a healthcare professional or requests technical
+          information.
+        - ``k`` (default 4, max 10): number of chunks after dedup.
 
-        RETORNO
-            Caminho feliz:
+        RETURN
+            Happy path:
               {"matches": [{chunk_id, med_name, section_canonical,
                             section_label, is_full_section, text, ...}, ...],
                "total": N}
 
-            Erros estruturados (NÃO são exceção — a tool retorna JSON normal):
+            Structured errors (NOT exceptions — the tool returns normal JSON):
               {"error": "medicamento_nao_encontrado",
-               "message": "Nenhuma bula encontrada para '<med_name>'.",
-               "hint": {"medicamentos_disponiveis": [...nomes canônicos...]}}
-              -> ocorre quando você passou ``med_name`` e a busca filtrada
-                 retornou 0. RETENTE com um nome da lista do hint, ou omita
-                 ``med_name`` e confie no embedding.
+               "message": "No package insert found for '<med_name>'.",
+               "hint": {"medicamentos_disponiveis": [...canonical names...]}}
+              -> occurs when you passed ``med_name`` and the filtered search
+                 returned 0. RETRY with a name from the hint list, or omit
+                 ``med_name`` and rely on the embedding.
 
               {"error": "nenhum_resultado",
-               "message": "Nenhum trecho relevante encontrado nas bulas indexadas.",
-               "hint": {"sugestao": "use listar_medicamentos_disponiveis"}}
-              -> ocorre quando NÃO passou ``med_name`` e ainda assim não veio
-                 nada. Informe ao usuário que o medicamento provavelmente não
-                 está no corpus indexado.
+               "message": "No relevant excerpt found in the indexed package inserts.",
+               "hint": {"suggestion": "use listar_medicamentos_disponiveis"}}
+              -> occurs when ``med_name`` was NOT passed and still nothing came
+                 back. Inform the user that the medication is probably not
+                 in the indexed corpus.
 
-        COMO RESPONDER
-            Use APENAS texto vindo de ``matches[].text``. Cite no formato
-            [Medicamento — section_label], ex.: [Ritalina — Como devo usar].
-            Sempre inclua o disclaimer médico padrão. Se vier ``error`` ou
-            matches vazio, informe que não encontrou a informação solicitada.
+        HOW TO RESPOND
+            Use ONLY text from ``matches[].text``. Cite in the format
+            [Medication — section_label], e.g.: [Ritalin — How should I use it].
+            Always include the standard medical disclaimer. If an ``error`` or
+            empty matches comes back, inform that the requested information was
+            not found.
         """
         started = time.perf_counter()
         try:
@@ -225,6 +227,7 @@ def build_tools(
                 query=query,
                 k=k,
                 med_name=med_name,
+                med_variant=med_variant,
                 section_hint=section_hint,
                 patient_facing_only=patient_facing_only,
             )
@@ -233,19 +236,19 @@ def build_tools(
                     available = await rag_service.list_medicamentos()
                     return ToolErrorPayload(
                         error="medicamento_nao_encontrado",
-                        message=f"Nenhuma bula encontrada para '{med_name}'.",
+                        message=f"No package insert found for '{med_name}'.",
                         hint={"medicamentos_disponiveis": available},
                     ).model_dump_json()
                 return ToolErrorPayload(
                     error="nenhum_resultado",
                     message=(
-                        "Nenhum trecho relevante encontrado nas bulas indexadas "
-                        "para esta consulta."
+                        "No relevant excerpt found in the indexed package inserts "
+                        "for this query."
                     ),
                     hint={
-                        "sugestao": (
-                            "use listar_medicamentos_disponiveis para ver "
-                            "o que esta indexado"
+                        "suggestion": (
+                            "use listar_medicamentos_disponiveis to see "
+                            "what is indexed"
                         )
                     },
                 ).model_dump_json()
@@ -261,6 +264,7 @@ def build_tools(
                     "latency_ms": (time.perf_counter() - started) * 1000,
                     "k": k,
                     "med_name": med_name,
+                    "med_variant": med_variant,
                     "section_hint": section_hint,
                     "patient_facing_only": patient_facing_only,
                 },
@@ -268,17 +272,22 @@ def build_tools(
 
     @tool("listar_medicamentos_disponiveis")
     async def listar_medicamentos_disponiveis() -> str:
-        """Lista todos os medicamentos com bula indexada (nomes canônicos).
+        """List all medications with an indexed package insert.
 
-        SEMPRE chame esta tool ANTES de ``buscar_bulas`` para confirmar o nome
-        canônico do medicamento. O usuário frequentemente usa apelidos ou nomes
-        parciais (ex.: "Ritalina") que diferem do nome canônico indexado (ex.:
-        "Ritalina Metilfenidato"). Use a lista retornada para escolher o nome
-        exato antes de passar ``med_name`` a ``buscar_bulas``.
+        ALWAYS call this tool BEFORE ``buscar_bulas`` to confirm the canonical
+        medication name. Users frequently use nicknames or partial names
+        (e.g. "Ritalin") that differ from the indexed canonical name (e.g.
+        "Ritalina Metilfenidato").
 
-        A lista vem direto do índice Qdrant — sempre alinhada com o corpus atual.
+        MULTI-VARIANT ENTRIES: when a PDF contains multiple products, each variant
+        appears as a separate entry in the format "Base Name — VARIANT NAME".
+        Example: "Ritalina Metilfenidato — RITALINA LA".
+        For these entries, pass:
+          med_name = "Ritalina Metilfenidato"
+          med_variant = "RITALINA LA"
+        to ``buscar_bulas``.
 
-        Retorna ``{"medicamentos": [...], "total": N}``.
+        Returns ``{"medicamentos": [...], "total": N}``.
         """
         started = time.perf_counter()
         try:

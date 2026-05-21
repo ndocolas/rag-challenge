@@ -26,14 +26,15 @@ from qdrant_client.models import (
     SparseVector,
 )
 
-from panvel_assistant.models.bula import BulaChunk, BulaMetadata
-from panvel_assistant.models.chat import Citation
+from panvel_assistant.models.bula_models import BulaChunk, BulaMetadata
+from panvel_assistant.models.chat_models import Citation
 from panvel_assistant.services.trace_service import trace_service
 from panvel_assistant.utils.logger import get_logger
 from panvel_assistant.utils.settings import settings
 
 logger = get_logger(__name__)
 _logger_extra = {"component.name": "RagService", "component.version": "v1"}
+_BULA_METADATA_FIELDS = frozenset(BulaMetadata.model_fields)
 
 
 SECTION_LABEL: dict[str, str] = {
@@ -82,8 +83,9 @@ class RAGService:
         med_name: str | None,
         section_hint: str | None,
         patient_facing_only: bool,
+        med_variant: str | None = None,
     ) -> Filter | None:
-        """Compose a Qdrant ``Filter`` from the three optional dimensions.
+        """Compose a Qdrant ``Filter`` from the optional search dimensions.
 
         Returns ``None`` when no filter is needed so the prefetch stays
         unfiltered (avoids constructing empty ``must`` lists).
@@ -92,6 +94,10 @@ class RAGService:
         if med_name:
             must.append(
                 FieldCondition(key="med_name", match=MatchValue(value=med_name))
+            )
+        if med_variant:
+            must.append(
+                FieldCondition(key="med_variant", match=MatchValue(value=med_variant))
             )
         if section_hint:
             must.append(
@@ -113,43 +119,26 @@ class RAGService:
     async def _embed_sparse(self, query: str) -> tuple[list[int], list[float]]:
         # fastembed is sync; offload so we don't block the event loop.
         def _run() -> tuple[list[int], list[float]]:
-            emb = next(iter(self._sparse.query_embed([query])))
+            results = list(self._sparse.query_embed([query]))
+            if not results:
+                raise RuntimeError("sparse embedding returned empty result")
+            emb = results[0]
             return emb.indices.tolist(), emb.values.tolist()
 
         return await asyncio.to_thread(_run)
 
-    async def retrieve(
+    async def _query_and_dedup(
         self,
-        query: str,
-        k: int = 4,
-        med_name: str | None = None,
-        section_hint: str | None = None,
-        patient_facing_only: bool = True,
+        dense: list[float],
+        sparse_idx: list[int],
+        sparse_val: list[float],
+        qfilter: Filter | None,
+        k: int,
     ) -> list[BulaChunk]:
-        """Hybrid search with RRF fusion + filtered prefetch + smart dedup.
-
-        Filters live INSIDE each ``Prefetch`` so RRF only fuses candidates that
-        already passed the structural constraints. Without this the fusion
-        score is contaminated by candidates that would later be discarded.
-        """
-        started = time.perf_counter()
-        qfilter = RAGService._build_filter(
-            med_name, section_hint, patient_facing_only
-        )
-        dense, (sparse_idx, sparse_val) = await asyncio.gather(
-            self._embed_dense(query),
-            self._embed_sparse(query),
-        )
-
         results = await self._qdrant.query_points(
             collection_name=settings.QDRANT_COLLECTION,
             prefetch=[
-                Prefetch(
-                    query=dense,
-                    using="dense",
-                    limit=k * 4,
-                    filter=qfilter,
-                ),
+                Prefetch(query=dense, using="dense", limit=k * 4, filter=qfilter),
                 Prefetch(
                     query=SparseVector(indices=sparse_idx, values=sparse_val),
                     using="bm25",
@@ -161,36 +150,37 @@ class RAGService:
             limit=k * 3,
             with_payload=True,
         )
+        return self._dedup_points(results.points, k)
 
-        chunks = self._dedup_points(results.points, k)
+    async def retrieve(
+        self,
+        query: str,
+        k: int = 4,
+        med_name: str | None = None,
+        med_variant: str | None = None,
+        section_hint: str | None = None,
+        patient_facing_only: bool = True,
+    ) -> list[BulaChunk]:
+        """Hybrid search with RRF fusion + filtered prefetch + smart dedup.
+
+        Filters live INSIDE each ``Prefetch`` so RRF only fuses candidates that
+        already passed the structural constraints. Without this the fusion
+        score is contaminated by candidates that would later be discarded.
+        """
+        started = time.perf_counter()
+        qfilter = RAGService._build_filter(med_name, section_hint, patient_facing_only, med_variant)
+        dense, (sparse_idx, sparse_val) = await asyncio.gather(
+            self._embed_dense(query),
+            self._embed_sparse(query),
+        )
+
+        chunks = await self._query_and_dedup(dense, sparse_idx, sparse_val, qfilter, k)
 
         if not chunks and section_hint:
-            # The requested section doesn't exist for this bula (e.g. interaction
-            # info stored under a precautions section instead of the dedicated
-            # IT_INTERACOES_MEDICAMENTOSAS section). Broaden the search by
-            # dropping section_hint while preserving med_name and patient_facing.
-            qfilter_broad = RAGService._build_filter(med_name, None, patient_facing_only)
-            results = await self._qdrant.query_points(
-                collection_name=settings.QDRANT_COLLECTION,
-                prefetch=[
-                    Prefetch(
-                        query=dense,
-                        using="dense",
-                        limit=k * 4,
-                        filter=qfilter_broad,
-                    ),
-                    Prefetch(
-                        query=SparseVector(indices=sparse_idx, values=sparse_val),
-                        using="bm25",
-                        limit=k * 4,
-                        filter=qfilter_broad,
-                    ),
-                ],
-                query=FusionQuery(fusion=Fusion.RRF),
-                limit=k * 3,
-                with_payload=True,
+            qfilter_broad = RAGService._build_filter(
+                med_name, None, patient_facing_only, med_variant
             )
-            chunks = self._dedup_points(results.points, k)
+            chunks = await self._query_and_dedup(dense, sparse_idx, sparse_val, qfilter_broad, k)
             logger.info(
                 "section_hint_fallback",
                 extra={
@@ -211,6 +201,7 @@ class RAGService:
                 "query_len": len(query),
                 "k": k,
                 "med_name": med_name,
+                "med_variant": med_variant,
                 "section_hint": section_hint,
                 "patient_facing_only": patient_facing_only,
                 "returned": len(chunks),
@@ -227,30 +218,41 @@ class RAGService:
         return chunks
 
     async def list_medicamentos(self) -> list[str]:
-        """Distinct canonical ``med_name`` values currently indexed in Qdrant.
+        """Distinct medication entries currently indexed in Qdrant.
+
+        Returns one entry per (med_name, med_variant) pair so multi-product
+        PDFs (e.g. Ritalina + Ritalina LA) appear as separate items.
+        Format: "Ritalina Metilfenidato" for the base product and
+        "Ritalina Metilfenidato — RITALINA LA" for named variants.
 
         Memoized on the instance because the corpus only changes via the
-        offline ingestion pipeline — re-scrolling on every turn would burn
-        budget for zero information.
+        offline ingestion pipeline.
         """
         if self._meds_cache is not None:
             return self._meds_cache
-        seen: set[str] = set()
+        seen: set[tuple[str, str | None]] = set()
         offset: Any = None
         while True:
             points, offset = await self._qdrant.scroll(
                 collection_name=settings.QDRANT_COLLECTION,
                 limit=256,
-                with_payload=["med_name"],
+                with_payload=["med_name", "med_variant"],
                 offset=offset,
             )
             for p in points:
-                name = (p.payload or {}).get("med_name")
+                payload = p.payload or {}
+                name = payload.get("med_name")
                 if name:
-                    seen.add(name)
+                    seen.add((name, payload.get("med_variant")))
             if offset is None:
                 break
-        self._meds_cache = sorted(seen)
+        entries: list[str] = []
+        for med_name, med_variant in seen:
+            if med_variant:
+                entries.append(f"{med_name} — {med_variant}")
+            else:
+                entries.append(med_name)
+        self._meds_cache = sorted(entries)
         logger.info(
             "med_name cache populado",
             extra={**_logger_extra, "step": "retrieval", "total_meds": len(self._meds_cache)},
@@ -269,7 +271,7 @@ class RAGService:
           two distinct slices of the same long section can co-occur.
         """
         seen_chunk_ids: set[str] = set()
-        seen_full_sections: set[tuple[str, str]] = set()
+        seen_full_sections: set[tuple[str, str, str | None]] = set()
         chunks: list[BulaChunk] = []
         for p in points:
             payload = p.payload or {}
@@ -278,15 +280,15 @@ class RAGService:
                 continue
             seen_chunk_ids.add(chunk_id)
             if payload.get("is_full_section"):
-                key = (payload.get("bula_id", ""), payload.get("section_canonical", ""))
+                key = (
+                    payload.get("bula_id", ""),
+                    payload.get("section_canonical", ""),
+                    payload.get("med_variant"),
+                )
                 if key in seen_full_sections:
                     continue
                 seen_full_sections.add(key)
-            md_kwargs = {
-                field: payload[field]
-                for field in BulaMetadata.model_fields
-                if field in payload
-            }
+            md_kwargs = {f: payload[f] for f in _BULA_METADATA_FIELDS if f in payload}
             chunks.append(
                 BulaChunk(
                     chunk_id=chunk_id,
@@ -320,24 +322,6 @@ class RAGService:
                 }
             )
         return {"matches": items, "total": len(items)}
-
-    @staticmethod
-    def format_citations(chunks: list[BulaChunk]) -> list[Citation]:
-        out: list[Citation] = []
-        for c in chunks:
-            md = c.metadata
-            out.append(
-                Citation(
-                    bula_id=md.bula_id,
-                    med_name=md.med_name,
-                    med_variant=md.med_variant,
-                    section_canonical=md.section_canonical,
-                    section_label=_section_label(md.section_canonical),
-                    source_page=md.source_page,
-                    snippet=c.text[:200].strip(),
-                )
-            )
-        return out
 
     @staticmethod
     def citations_from_matches(matches: list[dict[str, Any]]) -> list[Citation]:

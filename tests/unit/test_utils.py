@@ -378,7 +378,7 @@ def test_create_app_allows_authorization_header():
 def test_client_ip_uses_x_forwarded_for():
     from unittest.mock import MagicMock
 
-    from panvel_assistant.routes.chat import _client_ip
+    from panvel_assistant.routes.chat_route import _client_ip
 
     req = MagicMock()
     req.headers = {"x-forwarded-for": "203.0.113.5, 10.0.0.1"}

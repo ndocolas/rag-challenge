@@ -29,8 +29,9 @@ from langchain_google_genai import ChatGoogleGenerativeAI
 
 from panvel_assistant.assistant.agent_tools import build_tools
 from panvel_assistant.assistant.prompts import SYSTEM_PROMPT_MVP
-from panvel_assistant.models.chat import ChatRequest, ToolCallTrace
+from panvel_assistant.models.chat_models import ChatRequest, ToolCallTrace
 from panvel_assistant.services.chat_history_service import (
+    RedisChatMessageHistory,
     RedisHistoryStore,
     get_history_store,
 )
@@ -231,6 +232,50 @@ class AssistantService:
         citations = _citations_from_tool_message(tool_msg.content)
         return [{"type": "sources", "citations": citations}] if citations else []
 
+    def _encode_event_sse(
+        self,
+        event: dict[str, Any],
+        text_chunks: list[str],
+        collected_citations: list[dict],
+    ) -> tuple[list[str], str]:
+        """Encode one stream event to SSE frame(s) and return a control signal.
+
+        Returns ``(frames, control)`` where ``control`` is:
+        - ``"continue"`` — keep iterating
+        - ``"break"``    — LLM done, exit loop normally
+        - any other str  — stable error code; caller must persist + error-frame
+        """
+        event_type = event["type"]
+        if event_type == "token":
+            text = event["text"]
+            text_chunks.append(text)
+            return [encode_text_event("token", text)], "continue"
+        if event_type == "tool_call":
+            return [
+                encode_event("tool_call", {"name": event["name"], "args": event["args"]})
+            ], "continue"
+        if event_type == "tool_result":
+            return [encode_event("tool_result", {
+                "name": event["name"],
+                "preview": event.get("preview"),
+                "error": event.get("error"),
+                "latency_ms": event.get("latency_ms"),
+            })], "continue"
+        if event_type == "sources":
+            collected_citations[:] = event["citations"]
+            trace_service.set_citations(event["citations"])
+            return [encode_event("sources", {"citations": event["citations"]})], "continue"
+        if event_type == "done":
+            trace_service.set_response(
+                "".join(text_chunks),
+                tokens_in=event.get("tokens_in"),
+                tokens_out=event.get("tokens_out"),
+            )
+            return [], "break"
+        if event_type == "error":
+            return [], event["message"]
+        return [], "continue"
+
     def _detect_tool_loop(
         self, tool_calls: list[dict], seen_calls: set[str]
     ) -> str | None:
@@ -376,62 +421,31 @@ class AssistantService:
         yield encode_event("trace_id", {"trace_id": tid})
 
         text_chunks: list[str] = []
+        _collected_citations: list[dict] = []
         cancelled = False
         persisted = False
         try:
             async for event in self.stream_with_tools(messages):
-                event_type = event["type"]
-                if event_type == "token":
-                    text = event["text"]
-                    text_chunks.append(text)
-                    yield encode_text_event("token", text)
-                elif event_type == "tool_call":
-                    yield encode_event(
-                        "tool_call",
-                        {"name": event["name"], "args": event["args"]},
-                    )
-                elif event_type == "tool_result":
-                    yield encode_event(
-                        "tool_result",
-                        {
-                            "name": event["name"],
-                            "preview": event.get("preview"),
-                            "error": event.get("error"),
-                            "latency_ms": event.get("latency_ms"),
-                        },
-                    )
-                elif event_type == "sources":
-                    trace_service.set_citations(event["citations"])
-                    yield encode_event(
-                        "sources", {"citations": event["citations"]}
-                    )
-                elif event_type == "error":
-                    # LLM-loop-level error (e.g. max iterations exceeded);
-                    # the message is already a stable opaque code. Persist the
-                    # user turn (with whatever partial text we already
-                    # streamed, plus a placeholder if none) so the next turn
-                    # for this session still has continuity.
+                frames, control = self._encode_event_sse(event, text_chunks, _collected_citations)
+                for frame in frames:
+                    yield frame
+                if control == "break":
+                    break
+                if control not in ("continue", "break"):
+                    # Stable error code from stream_with_tools (e.g. max_tool_iterations_exceeded).
+                    # Persist user turn so the next turn has continuity.
                     self._persist_failed_turn(
                         history,
                         user_msg=user_msg,
                         partial_text=text_chunks,
-                        reason=event["message"],
+                        reason=control,
                         session_id=req.session_id,
                     )
                     persisted = True
                     yield encode_stream_error(
-                        code=event["message"],
-                        message=event["message"],
-                        trace_id=trace_id_var.get(),
+                        code=control, message=control, trace_id=trace_id_var.get()
                     )
                     return
-                elif event_type == "done":
-                    trace_service.set_response(
-                        "".join(text_chunks),
-                        tokens_in=event.get("tokens_in"),
-                        tokens_out=event.get("tokens_out"),
-                    )
-                    break
         except asyncio.CancelledError:
             cancelled = True
             logger.info(
@@ -493,18 +507,33 @@ class AssistantService:
         # Persist in the background so ``done`` ships without waiting on Redis.
         # The history store tracks the task and ``drain_pending`` is awaited
         # during shutdown so no turn is dropped on a clean stop.
-        assistant_msg = AIMessage(content="".join(text_chunks))
+        assistant_msg = AIMessage(
+            content="".join(text_chunks),
+            additional_kwargs={"citations": _collected_citations} if _collected_citations else {},
+        )
         self._spawn_persist(
             history,
             [user_msg, assistant_msg],
             step="persist",
             session_id=req.session_id,
         )
+        async def _save_meta() -> None:
+            try:
+                await self._history.save_session_meta(req.session_id, req.message[:60])
+            except Exception:
+                logger.warning("failed to save session meta", extra=_logger_extra)
+
+        try:
+            loop = asyncio.get_running_loop()
+            task = loop.create_task(_save_meta(), name=f"save_meta:{req.session_id}")
+            self._history.register_pending(task, session_id=req.session_id)
+        except RuntimeError:
+            pass
         yield encode_event("done", {"session_id": req.session_id})
 
     def _persist_failed_turn(
         self,
-        history,
+        history: RedisChatMessageHistory,
         *,
         user_msg: HumanMessage,
         partial_text: list[str],
@@ -529,7 +558,7 @@ class AssistantService:
 
     def _spawn_persist(
         self,
-        history,
+        history: RedisChatMessageHistory,
         messages: list[BaseMessage],
         *,
         step: str,

@@ -32,10 +32,10 @@ from qdrant_client.models import (
 
 from panvel_assistant.assistant.sectionizer import (
     Section,
-    detect_med_variants,
+    extract_variant_names,
     sectionize,
 )
-from panvel_assistant.models.bula import BulaChunk, BulaMetadata
+from panvel_assistant.models.bula_models import BulaChunk, BulaMetadata
 from panvel_assistant.utils.logger import get_logger
 from panvel_assistant.utils.pdf import extract_text, file_hash
 from panvel_assistant.utils.settings import settings
@@ -129,18 +129,13 @@ def section_to_chunks(
         ]
 
     pieces = _splitter.split_text(content)
-    header_prefix = (
-        f"{section.raw_header.strip()}\n\n" if section.raw_header else ""
-    )
+    raw_header_stripped = section.raw_header.strip() if section.raw_header else ""
+    header_prefix = f"{raw_header_stripped}\n\n" if raw_header_stripped else ""
     chunks: list[BulaChunk] = []
     for idx, piece in enumerate(pieces):
         # Always prepend the header so each sub-chunk carries section identity
         # in both the dense embedding and the BM25 sparse representation.
-        text = (
-            piece
-            if piece.startswith(section.raw_header.strip())
-            else f"{header_prefix}{piece}"
-        )
+        text = piece if piece.startswith(raw_header_stripped) else f"{header_prefix}{piece}"
         chunk_id = (
             f"{bula_id}__{section.canonical}__{section.occurrence}__part{idx}"
         )
@@ -167,7 +162,7 @@ def chunks_for_pdf(pdf_path: Path) -> list[BulaChunk]:
     bula_id, med_name, anvisa_code = parse_filename(pdf_path.stem)
     text = extract_text(pdf_path)
     sections = sectionize(text)
-    variants = detect_med_variants(sections)
+    variants = extract_variant_names(text, sections)
     all_chunks: list[BulaChunk] = []
     for s in sections:
         variant = variants.get(s.occurrence)

@@ -13,7 +13,7 @@ import pandas as pd
 import pytest
 
 from panvel_assistant.assistant.agent_tools import build_tools
-from panvel_assistant.models.tool import (
+from panvel_assistant.models.tool_models import (
     BuscarFiliaisOutput,
     DetalhesFilialOutput,
     ListarCidadesOutput,

@@ -15,7 +15,7 @@ from langchain_core.messages import AIMessageChunk, BaseMessage
 
 from panvel_assistant.assistant.agent_tools import build_tools
 from panvel_assistant.assistant.assistant_service import AssistantService
-from panvel_assistant.models.bula import BulaChunk, BulaMetadata
+from panvel_assistant.models.bula_models import BulaChunk, BulaMetadata
 from panvel_assistant.services.filiais_service import filiais_service
 
 
@@ -65,6 +65,7 @@ class _FakeRAGService:
         query: str,
         k: int = 4,
         med_name: str | None = None,
+        med_variant: str | None = None,
         section_hint: str | None = None,
         patient_facing_only: bool = True,
     ) -> list[BulaChunk]:

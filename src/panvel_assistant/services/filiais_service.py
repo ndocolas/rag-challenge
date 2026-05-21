@@ -20,7 +20,7 @@ from typing import cast
 
 import pandas as pd
 
-from panvel_assistant.models.filial import (
+from panvel_assistant.models.filial_models import (
     FaixaVida,
     FilialCompleta,
     FilialResumo,
@@ -169,12 +169,16 @@ class FiliaisService:
         # ``_row_to_completa`` already strips ``codigo_filial``; keep the
         # indexing key consistent so ``detalhar`` lookups can't miss because
         # of source-side whitespace.
-        self._by_codigo = {f.codigo_filial: f for f in self._all}
-        self._cidades = sorted({f.localidade for f in self._all})
-        self._cidades_norm = {_normalize(c) for c in self._cidades}
+        by_codigo: dict[str, FilialCompleta] = {}
         by_cidade: dict[str, list[FilialCompleta]] = {}
+        cidades_set: set[str] = set()
         for f in self._all:
+            by_codigo[f.codigo_filial] = f
+            cidades_set.add(f.localidade)
             by_cidade.setdefault(_normalize(f.localidade), []).append(f)
+        self._by_codigo = by_codigo
+        self._cidades = sorted(cidades_set)
+        self._cidades_norm = {_normalize(c) for c in self._cidades}
         self._por_cidade_norm = by_cidade
         self._loaded = True
         logger.info(
