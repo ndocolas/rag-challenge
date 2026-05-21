@@ -48,6 +48,7 @@ def _client_ip(request: Request) -> str:
 
 
 @router.post("/chat")
+@handle_errors
 async def chat(
     request: Request,
     req: ChatRequest,
