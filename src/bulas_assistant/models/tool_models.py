@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from panvel_assistant.models.filial_models import (
+from bulas_assistant.models.filial_models import (
     FaixaVida,
     FilialCompleta,
     FilialResumo,
@@ -37,7 +37,7 @@ class BuscarFiliaisInput(BaseModel):
     servicos: list[ServicoFilial] | None = Field(
         None,
         description="Services the branch MUST have (logical AND). Valid "
-                    "values: panvel_clinic, delivery, estacionamento, "
+                    "values: clinic, delivery, estacionamento, "
                     "atendimento_24_horas.",
     )
     tipo_estabelecimento: TipoEstabelecimento | None = None

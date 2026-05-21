@@ -12,8 +12,8 @@ from pathlib import Path
 
 import pdfplumber
 
-from panvel_assistant.utils.logger import get_logger
-from panvel_assistant.utils.settings import settings
+from bulas_assistant.utils.logger import get_logger
+from bulas_assistant.utils.settings import settings
 
 logger = get_logger(__name__)
 _logger_extra = {"component.name": "PdfUtils", "component.version": "v1"}

@@ -21,7 +21,7 @@ from fastapi import HTTPException, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
-from panvel_assistant.utils.exceptions import (
+from bulas_assistant.utils.exceptions import (
     AppError,
     InvalidRequestError,
     LLMProviderError,
@@ -31,7 +31,7 @@ from panvel_assistant.utils.exceptions import (
     SessionBusyError,
     ToolExecutionError,
 )
-from panvel_assistant.utils.logger import get_logger, trace_id_var
+from bulas_assistant.utils.logger import get_logger, trace_id_var
 
 logger = get_logger(__name__)
 _logger_extra = {"component.name": "ErrorHandler", "component.version": "v1"}

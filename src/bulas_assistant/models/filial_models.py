@@ -1,11 +1,11 @@
-"""Pydantic schemas for the Panvel-PR branch (filial) domain."""
+"""Pydantic schemas for the PR branch (filial) domain."""
 
 from typing import Literal
 
 from pydantic import BaseModel, Field
 
 ServicoFilial = Literal[
-    "panvel_clinic", "delivery", "estacionamento", "atendimento_24_horas"
+    "clinic", "delivery", "estacionamento", "atendimento_24_horas"
 ]
 TipoEstabelecimento = Literal["BAIRRO", "CENTRO", "SHOPPING", "MALL", "SUPERMERCADO"]
 FaixaVida = Literal[
@@ -28,6 +28,6 @@ class FilialCompleta(BaseModel):
     tipo_estabelecimento: TipoEstabelecimento
     delivery: bool
     metragem_area_venda: float
-    panvel_clinic: bool
+    clinic: bool
     estacionamento: bool
     atendimento_24_horas: bool

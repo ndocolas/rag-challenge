@@ -6,7 +6,7 @@ import pytest
 from fakeredis import aioredis as fake_aioredis
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 
-from panvel_assistant.services.chat_history_service import (
+from bulas_assistant.services.chat_history_service import (
     MAX_MESSAGES,
     LockBusyError,
     RedisChatMessageHistory,
@@ -14,8 +14,8 @@ from panvel_assistant.services.chat_history_service import (
     _redact_url,
     serialize_messages_to_text,
 )
-from panvel_assistant.utils.exceptions import SessionBusyError
-from panvel_assistant.utils.settings import settings
+from bulas_assistant.utils.exceptions import SessionBusyError
+from bulas_assistant.utils.settings import settings
 
 
 @pytest.fixture

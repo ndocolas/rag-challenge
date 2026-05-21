@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: build-panvel-assistant
+  group: build-bulas-assistant
   cancel-in-progress: true
 
 jobs:
@@ -44,7 +44,7 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/ndocolas/panvel-assistant-backend:${{ steps.tag.outputs.tag }}
-            ghcr.io/ndocolas/panvel-assistant-backend:latest
+            ghcr.io/ndocolas/bulas-assistant-backend:${{ steps.tag.outputs.tag }}
+            ghcr.io/ndocolas/bulas-assistant-backend:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max

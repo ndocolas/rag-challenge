@@ -1,6 +1,6 @@
 """Test bootstrap.
 
-Sets the minimal environment variables BEFORE any ``panvel_assistant.*``
+Sets the minimal environment variables BEFORE any ``bulas_assistant.*``
 import, because ``Settings()`` is instantiated at import time inside
 ``settings.py`` and ``GOOGLE_API_KEY`` has no default.
 """

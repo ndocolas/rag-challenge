@@ -4,7 +4,7 @@ from __future__ import annotations
 import pytest
 from fakeredis import aioredis as fake_aioredis
 
-from panvel_assistant.services.chat_history_service import RedisHistoryStore
+from bulas_assistant.services.chat_history_service import RedisHistoryStore
 
 
 @pytest.fixture

@@ -2,7 +2,7 @@
 
 Project-wide rules:
 
-    from panvel_assistant.utils.logger import get_logger
+    from bulas_assistant.utils.logger import get_logger
     logger = get_logger(__name__)
     _logger_extra = {"component.name": "MyModule", "component.version": "v1"}
 
@@ -78,7 +78,7 @@ def _resolve_log_level() -> str:
     (e.g. logging from inside ``Settings`` itself) without a circular import.
     """
     try:
-        from panvel_assistant.utils.settings import get_settings
+        from bulas_assistant.utils.settings import get_settings
 
         return get_settings().LOG_LEVEL
     except Exception:
@@ -93,11 +93,11 @@ def get_logger(name: str) -> logging.Logger:
     centralized ``Settings`` so the env value is parsed in exactly one place.
     """
     logger = logging.getLogger(name)
-    if not getattr(logger, "_panvel_configured", False):
+    if not getattr(logger, "_bulas_configured", False):
         logger.setLevel(_resolve_log_level())
         handler = logging.StreamHandler()
         handler.setFormatter(TextFormatter())
         logger.addHandler(handler)
         logger.propagate = False
-        logger._panvel_configured = True  # type: ignore[attr-defined]
+        logger._bulas_configured = True  # type: ignore[attr-defined]
     return logger

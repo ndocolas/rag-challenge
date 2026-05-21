@@ -1,6 +1,6 @@
-# Panvel — Assistente Conversacional Farmacêutico
+# RAG Bulas — Assistente Farmacêutico
 
-Assistente LLM para informação farmacológica (RAG sobre 20 bulas Anvisa) e consulta a filiais Panvel-PR (tool calling). Respostas em streaming SSE.
+Assistente LLM para informação farmacológica (RAG sobre 20 bulas Anvisa) e consulta a filiais do PR (tool calling). Respostas em streaming SSE.
 
 ## Stack
 
@@ -53,7 +53,7 @@ docker compose down -v
 ```bash
 uv sync
 cp .env.example .env        # preencha GOOGLE_API_KEY + ajuste URLs se necessário
-uv run uvicorn panvel_assistant.main:app --reload
+uv run uvicorn bulas_assistant.main:app --reload
 ```
 
 Healthcheck:
@@ -74,7 +74,7 @@ uv run ruff check src/ tests/
 
 ```
 rag-challenge/
-├── src/panvel_assistant/   # FastAPI backend
+├── src/bulas_assistant/   # FastAPI backend
 ├── tests/                  # Unit + integration
 ├── scripts/                # ingest_bulas.py
 ├── data/                   # corpus_bulas/, filiais.parquet

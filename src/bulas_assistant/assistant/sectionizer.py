@@ -5,7 +5,7 @@ raw bula text into ordered :class:`Section` slices. The parser is purely
 regex-based: anchors require a header to be alone on its line (``re.M``) so
 table-of-contents lines and inline mentions do not produce false positives.
 
-Outputs are consumed by :mod:`panvel_assistant.services.ingestion_service`
+Outputs are consumed by :mod:`bulas_assistant.services.ingestion_service`
 which then applies the hybrid chunking policy.
 """
 
@@ -14,7 +14,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from panvel_assistant.models.bula_models import SectionCanonical
+from bulas_assistant.models.bula_models import SectionCanonical
 
 
 @dataclass(frozen=True)

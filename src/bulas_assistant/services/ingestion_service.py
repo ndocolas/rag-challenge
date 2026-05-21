@@ -30,15 +30,15 @@ from qdrant_client.models import (
     VectorParams,
 )
 
-from panvel_assistant.assistant.sectionizer import (
+from bulas_assistant.assistant.sectionizer import (
     Section,
     extract_variant_names,
     sectionize,
 )
-from panvel_assistant.models.bula_models import BulaChunk, BulaMetadata
-from panvel_assistant.utils.logger import get_logger
-from panvel_assistant.utils.pdf import extract_text, file_hash
-from panvel_assistant.utils.settings import settings
+from bulas_assistant.models.bula_models import BulaChunk, BulaMetadata
+from bulas_assistant.utils.logger import get_logger
+from bulas_assistant.utils.pdf import extract_text, file_hash
+from bulas_assistant.utils.settings import settings
 
 logger = get_logger(__name__)
 _logger_extra = {"component.name": "IngestionService", "component.version": "v1"}

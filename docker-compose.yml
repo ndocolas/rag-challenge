@@ -1,7 +1,7 @@
 services:
   redis:
     image: redis:7-alpine
-    container_name: panvel-redis
+    container_name: bulas-redis
     command: ["redis-server", "--appendonly", "no", "--save", ""]
     ports:
       - "6379:6379"
@@ -20,7 +20,7 @@ services:
 
   qdrant:
     image: qdrant/qdrant:v1.13.0
-    container_name: panvel-qdrant
+    container_name: bulas-qdrant
     ports:
       - "6333:6333"
     volumes:
@@ -49,8 +49,8 @@ services:
   backend:
     build:
       context: .
-    image: panvel-assistant-backend:dev
-    container_name: panvel-backend
+    image: bulas-assistant-backend:dev
+    container_name: bulas-backend
     env_file:
       - path: .env
         required: false
@@ -88,7 +88,7 @@ services:
   frontend:
     build:
       context: ./frontend
-    container_name: panvel-frontend
+    container_name: bulas-frontend
     environment:
       VITE_API_URL: http://localhost:8000
     ports:
@@ -106,7 +106,7 @@ services:
   ingest:
     build:
       context: .
-    container_name: panvel-ingest
+    container_name: bulas-ingest
     profiles: ["ingest"]
     env_file:
       - path: .env

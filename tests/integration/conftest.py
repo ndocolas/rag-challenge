@@ -1,10 +1,10 @@
 """Integration-suite bootstrap.
 
 The root ``tests/conftest.py`` force-injects ``GOOGLE_API_KEY=test-key`` via
-``setdefault`` so unit tests can import ``panvel_assistant`` without a real
+``setdefault`` so unit tests can import ``bulas_assistant`` without a real
 Gemini key. Integration tests, however, need the real key from ``.env``.
 
-This module runs at collection time (before any panvel import inside a test
+This module runs at collection time (before any bulas_assistant import inside a test
 collects), reads ``.env`` and OVERWRITES the placeholder so ``Settings`` (and
 all downstream singletons) see the genuine credential.
 """
@@ -29,7 +29,7 @@ def _load_real_key() -> None:
         # reads pick up the real value. Already-bound module references are
         # rebuilt lazily via the ``__getattr__`` proxy in settings.py.
         try:
-            from panvel_assistant.utils.settings import get_settings
+            from bulas_assistant.utils.settings import get_settings
 
             get_settings.cache_clear()
         except Exception:

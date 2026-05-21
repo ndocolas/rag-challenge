@@ -8,12 +8,12 @@ from asgi_lifespan import LifespanManager
 from fakeredis import aioredis as fake_aioredis
 from langchain_core.messages import AIMessage, HumanMessage
 
-from panvel_assistant.main import app
-from panvel_assistant.services.chat_history_service import (
+from bulas_assistant.main import app
+from bulas_assistant.services.chat_history_service import (
     RedisChatMessageHistory,
     history_store,
 )
-from panvel_assistant.services.trace_service import trace_service
+from bulas_assistant.services.trace_service import trace_service
 
 
 @pytest.fixture

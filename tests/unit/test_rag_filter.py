@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from qdrant_client.models import Filter
 
-from panvel_assistant.services.rag_service import RAGService
+from bulas_assistant.services.rag_service import RAGService
 
 
 def _conditions(f: Filter) -> list[tuple[str, object]]:

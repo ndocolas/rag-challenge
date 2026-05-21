@@ -12,14 +12,14 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from panvel_assistant.assistant.agent_tools import build_tools
-from panvel_assistant.models.tool_models import (
+from bulas_assistant.assistant.agent_tools import build_tools
+from bulas_assistant.models.tool_models import (
     BuscarFiliaisOutput,
     DetalhesFilialOutput,
     ListarCidadesOutput,
     ToolErrorPayload,
 )
-from panvel_assistant.services.filiais_service import FiliaisService
+from bulas_assistant.services.filiais_service import FiliaisService
 
 _ROWS = [
     {
@@ -30,7 +30,7 @@ _ROWS = [
         "tipo_estabelecimento": "BAIRRO",
         "delivery": "SIM",
         "metragem_area_venda": 200.0,
-        "panvel_clinic": "SIM",
+        "clinic": "SIM",
         "estacionamento": "SIM",
         "atendimento_24_horas": "SIM",
     },
@@ -42,7 +42,7 @@ _ROWS = [
         "tipo_estabelecimento": "SHOPPING",
         "delivery": "NÃO",
         "metragem_area_venda": 80.0,
-        "panvel_clinic": "NÃO",
+        "clinic": "NÃO",
         "estacionamento": "SIM",
         "atendimento_24_horas": "NÃO",
     },
@@ -54,7 +54,7 @@ _ROWS = [
         "tipo_estabelecimento": "CENTRO",
         "delivery": "SIM",
         "metragem_area_venda": 500.0,
-        "panvel_clinic": "SIM",
+        "clinic": "SIM",
         "estacionamento": "NÃO",
         "atendimento_24_horas": "NÃO",
     },
@@ -107,7 +107,7 @@ def test_buscar_filiais_multi_service_and_logic(tools):
         tools["buscar_filiais"],
         {
             "cidade": "CURITIBA",
-            "servicos": ["panvel_clinic", "atendimento_24_horas"],
+            "servicos": ["clinic", "atendimento_24_horas"],
         },
     )
     parsed = BuscarFiliaisOutput.model_validate_json(raw)

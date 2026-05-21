@@ -48,7 +48,7 @@ class Settings(BaseSettings):
 
     # Vector store
     QDRANT_URL: str = "http://localhost:6333"
-    QDRANT_COLLECTION: str = "bulas_panvel"
+    QDRANT_COLLECTION: str = "bulas"
 
     # Cache / memory
     REDIS_URL: str = "redis://localhost:6379/0"
@@ -62,7 +62,7 @@ class Settings(BaseSettings):
 
     # Observability
     LANGSMITH_API_KEY: str | None = None
-    LANGSMITH_PROJECT: str = "panvel-assistant"
+    LANGSMITH_PROJECT: str = "bulas-assistant"
     LANGCHAIN_TRACING_V2: bool = True
 
     # API

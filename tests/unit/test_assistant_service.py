@@ -10,15 +10,15 @@ import pytest
 from langchain_core.messages import AIMessage, AIMessageChunk, BaseMessage, HumanMessage
 from langchain_core.tools import tool as tool_decorator
 
-from panvel_assistant.assistant import assistant_service as assistant_module
-from panvel_assistant.assistant.assistant_service import (
+from bulas_assistant.assistant import assistant_service as assistant_module
+from bulas_assistant.assistant.assistant_service import (
     MAX_TOOL_ITERATIONS,
     AssistantService,
     _coerce_content_to_text,
     get_assistant_service,
 )
-from panvel_assistant.models.chat_models import ChatRequest
-from panvel_assistant.services import chat_history_service
+from bulas_assistant.models.chat_models import ChatRequest
+from bulas_assistant.services import chat_history_service
 
 # ---------------------------------------------------------------------------
 # _coerce_content_to_text — pure function over LangChain chunk content shapes.
@@ -579,31 +579,31 @@ async def test_handle_turn_terminates_on_internal_error_event(
 
 
 def test_citations_from_tool_message_empty_string():
-    from panvel_assistant.assistant.assistant_service import _citations_from_tool_message
+    from bulas_assistant.assistant.assistant_service import _citations_from_tool_message
 
     assert _citations_from_tool_message("") == []
 
 
 def test_citations_from_tool_message_non_string():
-    from panvel_assistant.assistant.assistant_service import _citations_from_tool_message
+    from bulas_assistant.assistant.assistant_service import _citations_from_tool_message
 
     assert _citations_from_tool_message(None) == []
 
 
 def test_citations_from_tool_message_invalid_json():
-    from panvel_assistant.assistant.assistant_service import _citations_from_tool_message
+    from bulas_assistant.assistant.assistant_service import _citations_from_tool_message
 
     assert _citations_from_tool_message("{not valid json{{{") == []
 
 
 def test_citations_from_tool_message_non_dict_json():
-    from panvel_assistant.assistant.assistant_service import _citations_from_tool_message
+    from bulas_assistant.assistant.assistant_service import _citations_from_tool_message
 
     assert _citations_from_tool_message("[1, 2, 3]") == []
 
 
 def test_citations_from_tool_message_no_matches():
-    from panvel_assistant.assistant.assistant_service import _citations_from_tool_message
+    from bulas_assistant.assistant.assistant_service import _citations_from_tool_message
 
     assert _citations_from_tool_message('{"other": "field"}') == []
 
@@ -664,7 +664,7 @@ async def test_parallel_duplicate_tool_calls_emits_repeated_error():
 
 
 def test_extract_token_counts_with_object_metadata():
-    from panvel_assistant.assistant.assistant_service import _extract_token_counts
+    from bulas_assistant.assistant.assistant_service import _extract_token_counts
 
     class _MockUsage:
         input_tokens = 42
@@ -698,8 +698,8 @@ async def test_execute_tool_synthesizes_missing_call_id():
 
 
 def test_citations_from_tool_message_exception_in_rag(monkeypatch):
-    from panvel_assistant.assistant.assistant_service import _citations_from_tool_message
-    from panvel_assistant.services import rag_service as rag_module
+    from bulas_assistant.assistant.assistant_service import _citations_from_tool_message
+    from bulas_assistant.services import rag_service as rag_module
 
     def _raise(*args, **kwargs):
         raise RuntimeError("rag exploded")
@@ -714,8 +714,8 @@ def test_citations_from_tool_message_exception_in_rag(monkeypatch):
 async def test_handle_turn_persists_citations_in_additional_kwargs(monkeypatch):
     """Citations from a sources event must be saved in AIMessage.additional_kwargs."""
     from langchain_core.messages import AIMessage, HumanMessage
-    from panvel_assistant.assistant.assistant_service import AssistantService
-    from panvel_assistant.models.chat_models import ChatRequest
+    from bulas_assistant.assistant.assistant_service import AssistantService
+    from bulas_assistant.models.chat_models import ChatRequest
 
     captured_messages: list = []
 

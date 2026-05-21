@@ -66,12 +66,12 @@ Esperado:
 
 ## Filiais (tool calling)
 
-**6. Lojas em Curitiba com Panvel Clinic e atendimento 24h**
+**6. Lojas em Curitiba com Clinic e atendimento 24h**
 
-> "Quais lojas em Curitiba têm Panvel Clinic e funcionam 24 horas?"
+> "Quais lojas em Curitiba têm Clinic e funcionam 24 horas?"
 
 Esperado:
-- Tool `buscar_filiais` invocada com filtros `cidade="Curitiba"`, `panvel_clinic=true`, `horario_24h=true`
+- Tool `buscar_filiais` invocada com filtros `cidade="Curitiba"`, `clinic=true`, `horario_24h=true`
 - Evento `tool_result` retorna lista com filial 1557 (ou equivalente)
 - Resposta apresenta nome, endereço e horário
 
@@ -84,7 +84,7 @@ Esperado:
 Esperado:
 - Tool `listar_cidades_atendidas` invocada
 - Resposta informa que o serviço atende apenas Paraná; Florianópolis não está na lista
-- Tom útil, sugere verificar canais Panvel para outras regiões
+- Tom útil, sugere verificar canais do assistente para outras regiões
 
 ---
 
@@ -118,9 +118,9 @@ Esperado:
 
 **10. Pergunta fora do domínio**
 
-> "Quanto custa um Uber até a Panvel mais próxima?"
+> "Quanto custa um Uber até a filial mais próxima?"
 
 Esperado:
 - Nenhuma tool invocada
 - Resposta recusa de forma educada e objetiva
-- Redireciona para o escopo: informações sobre medicamentos ou filiais Panvel-PR
+- Redireciona para o escopo: informações sobre medicamentos ou filiais do PR
