@@ -17,7 +17,7 @@ from panvel_assistant.assistant.assistant_service import (
     _coerce_content_to_text,
     get_assistant_service,
 )
-from panvel_assistant.models.chat import ChatRequest
+from panvel_assistant.models.chat_models import ChatRequest
 from panvel_assistant.services import chat_history_service
 
 # ---------------------------------------------------------------------------
@@ -708,3 +708,52 @@ def test_citations_from_tool_message_exception_in_rag(monkeypatch):
 
     result = _citations_from_tool_message('{"matches": [{"text": "x"}]}')
     assert result == []
+
+
+@pytest.mark.asyncio
+async def test_handle_turn_persists_citations_in_additional_kwargs(monkeypatch):
+    """Citations from a sources event must be saved in AIMessage.additional_kwargs."""
+    from langchain_core.messages import AIMessage, HumanMessage
+    from panvel_assistant.assistant.assistant_service import AssistantService
+    from panvel_assistant.models.chat_models import ChatRequest
+
+    captured_messages: list = []
+
+    class FakeHistory:
+        async def aget_messages(self):
+            return []
+
+        async def aadd_messages(self, messages):
+            captured_messages.extend(messages)
+
+    class FakeStore:
+        def get_session_history(self, _):
+            return FakeHistory()
+
+        def register_pending(self, task, *, session_id=None):
+            pass
+
+        async def save_session_meta(self, session_id, title):
+            pass
+
+    fake_citations = [{"bula_id": "b1", "med_name": "Ritalina", "snippet": "..."}]
+
+    async def fake_stream_with_tools(messages):
+        yield {"type": "token", "text": "Resposta."}
+        yield {"type": "sources", "citations": fake_citations}
+        yield {"type": "done", "tokens_in": 10, "tokens_out": 5}
+
+    svc = AssistantService.__new__(AssistantService)
+    svc._history = FakeStore()
+    monkeypatch.setattr(svc, "stream_with_tools", fake_stream_with_tools)
+
+    req = ChatRequest(session_id="s1", message="Ritalina contraindicações")
+    frames = [f async for f in svc.handle_turn(req)]
+
+    # Yield control so background tasks created by _spawn_persist can execute.
+    await asyncio.sleep(0)
+    await asyncio.sleep(0)
+
+    ai_msgs = [m for m in captured_messages if isinstance(m, AIMessage)]
+    assert ai_msgs, "no AIMessage persisted"
+    assert ai_msgs[0].additional_kwargs.get("citations") == fake_citations

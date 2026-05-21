@@ -14,7 +14,7 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from panvel_assistant.models.bula import SectionCanonical
+from panvel_assistant.models.bula_models import SectionCanonical
 
 
 @dataclass(frozen=True)
@@ -168,6 +168,8 @@ HEADERS: tuple[HeaderPattern, ...] = (
     ),
 )
 
+_DIZERES_PATTERN = re.compile(r"^\s*DIZERES LEGAIS\s*$", re.I | re.M)
+
 
 @dataclass
 class Section:
@@ -192,8 +194,7 @@ def _truncate_after_dizeres(text: str) -> str:
     (small, contains manufacturer info), but cap it at ~2k chars to avoid the
     long historical tails.
     """
-    pattern = re.compile(r"^\s*DIZERES LEGAIS\s*$", re.I | re.M)
-    match = pattern.search(text)
+    match = _DIZERES_PATTERN.search(text)
     if not match:
         return text
     end = min(len(text), match.end() + 2000)
@@ -206,8 +207,11 @@ def sectionize(text: str) -> list[Section]:
     Each section runs from its header match up to the start of the next
     header (or end of text). When no headers are found, returns a single
     ``UNCLASSIFIED`` section spanning the entire text.
+
+    The full text is processed without early truncation so multi-product PDFs
+    (e.g. Ritalina + Ritalina LA in the same file) are indexed completely.
+    Per-section caps are applied downstream in the chunking stage.
     """
-    text = _truncate_after_dizeres(text)
 
     matches: list[tuple[int, HeaderPattern, str]] = []
     for hp in HEADERS:
@@ -256,8 +260,58 @@ def detect_med_variants(sections: list[Section]) -> dict[int, str | None]:
     covers multiple presentations (e.g. Ritalina IR vs Ritalina LA). The first
     occurrence stays ``None`` (default variant); subsequent ones get a
     ``variante_N`` label so downstream payloads can disambiguate.
+
+    Prefer :func:`extract_variant_names` when the raw PDF text is available —
+    it returns human-readable names (e.g. "RITALINA LA") instead of synthetic
+    labels.
     """
-    iap1_count = sum(1 for s in sections if s.canonical == "IAP_1_INDICACOES")
+    last_occ = next(
+        (s.occurrence for s in reversed(sections) if s.canonical == "IAP_1_INDICACOES"),
+        -1,
+    )
+    iap1_count = last_occ + 1
     if iap1_count <= 1:
         return {0: None}
     return {i: (f"variante_{i + 1}" if i > 0 else None) for i in range(iap1_count)}
+
+
+# Matches a short all-caps line — typical product name in Brazilian bulas.
+_PRODUCT_NAME_RE = re.compile(
+    r"^\s*([A-ZÁÀÂÃÉÊÍÓÔÕÚÇ][A-ZÁÀÂÃÉÊÍÓÔÕÚÇ\s\d®\-\.]{1,49})\s*$",
+    re.M,
+)
+
+# Known Anvisa section header words to exclude from variant name detection.
+_KNOWN_HEADER_WORDS = frozenset({
+    "DIZERES LEGAIS", "APRESENTAÇÕES", "APRESENTACOES", "COMPOSIÇÃO",
+    "COMPOSICAO", "INFORMAÇÕES", "INFORMACOES",
+})
+
+
+def extract_variant_names(text: str, sections: list[Section]) -> dict[int, str | None]:
+    """Return meaningful variant names extracted from the raw PDF text.
+
+    For each occurrence > 0, scans the 600 chars before the second (or later)
+    ``IAP_1_INDICACOES`` section for a capitalised product-name line. Takes the
+    LAST such match (closest to the new section) and skips known Anvisa headers.
+    Falls back to ``variante_N`` when the pattern is not found.
+    """
+    iap1_sections = [s for s in sections if s.canonical == "IAP_1_INDICACOES"]
+    if len(iap1_sections) <= 1:
+        return {0: None}
+
+    result: dict[int, str | None] = {0: None}
+    for sec in iap1_sections[1:]:
+        preamble_start = max(0, sec.start - 600)
+        preamble = text[preamble_start : sec.start]
+        # Collect all matches and take the last one, skipping known headers.
+        candidates = [
+            m.group(1).strip()
+            for m in _PRODUCT_NAME_RE.finditer(preamble)
+            if m.group(1).strip().upper() not in _KNOWN_HEADER_WORDS
+        ]
+        if candidates:
+            result[sec.occurrence] = candidates[-1]
+        else:
+            result[sec.occurrence] = f"variante_{sec.occurrence + 1}"
+    return result

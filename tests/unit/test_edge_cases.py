@@ -17,7 +17,7 @@ from panvel_assistant.assistant.assistant_service import (
     _coerce_content_to_text,
     assistant_service,
 )
-from panvel_assistant.models.chat import ChatRequest
+from panvel_assistant.models.chat_models import ChatRequest
 from panvel_assistant.services import chat_history_service
 
 

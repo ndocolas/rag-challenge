@@ -4,7 +4,7 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-from panvel_assistant.models.filial import (
+from panvel_assistant.models.filial_models import (
     FaixaVida,
     FilialCompleta,
     FilialResumo,
@@ -80,6 +80,15 @@ class BuscarBulasInput(BaseModel):
             "Nome canônico do medicamento (ex.: 'Ritalina', 'Losartana'). "
             "Filtra match exato no payload — passe sempre que conseguir "
             "identificar o nome a partir da conversa."
+        ),
+    )
+    med_variant: str | None = Field(
+        None,
+        description=(
+            "Variante do medicamento quando há múltiplos produtos no mesmo PDF "
+            "(ex.: 'RITALINA LA'). Obtido via listar_medicamentos_disponiveis — "
+            "aparece após ' — ' no nome. Ex.: 'Ritalina Metilfenidato — RITALINA LA' "
+            "→ med_name='Ritalina Metilfenidato', med_variant='RITALINA LA'."
         ),
     )
     section_hint: SectionHint | None = Field(

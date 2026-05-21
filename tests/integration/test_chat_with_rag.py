@@ -15,7 +15,7 @@ from langchain_core.messages import AIMessageChunk, BaseMessage
 
 from panvel_assistant.assistant.agent_tools import build_tools
 from panvel_assistant.assistant.assistant_service import AssistantService
-from panvel_assistant.models.bula import BulaChunk, BulaMetadata
+from panvel_assistant.models.bula_models import BulaChunk, BulaMetadata
 from panvel_assistant.services.filiais_service import filiais_service
 
 

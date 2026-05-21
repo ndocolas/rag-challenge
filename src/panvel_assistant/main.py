@@ -13,9 +13,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from panvel_assistant.routes.admin import router as admin_router
-from panvel_assistant.routes.chat import router as chat_router
-from panvel_assistant.routes.echo import router as echo_router
+from panvel_assistant.routes.admin_route import router as admin_router
+from panvel_assistant.routes.chat_route import router as chat_router
+from panvel_assistant.routes.sessions_route import router as sessions_router
 from panvel_assistant.services.chat_history_service import get_history_store
 from panvel_assistant.services.filiais_service import filiais_service
 from panvel_assistant.services.trace_service import trace_service
@@ -240,9 +240,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     )
     app.add_exception_handler(Exception, unhandled_exception_handler)
 
-    app.include_router(echo_router)
     app.include_router(chat_router)
     app.include_router(admin_router)
+    app.include_router(sessions_router)
 
     return app
 

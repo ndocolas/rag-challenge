@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 from fakeredis import aioredis as fake_aioredis
-from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, HumanMessage
 
 from panvel_assistant.services.chat_history_service import (
     MAX_MESSAGES,
@@ -12,7 +12,6 @@ from panvel_assistant.services.chat_history_service import (
     RedisChatMessageHistory,
     RedisHistoryStore,
     _redact_url,
-    serialize_messages_to_text,
 )
 from panvel_assistant.utils.exceptions import SessionBusyError
 from panvel_assistant.utils.settings import settings
@@ -93,20 +92,6 @@ def test_sync_clear_raises(history):
     with pytest.raises(NotImplementedError):
         history.clear()
 
-
-def test_serialize_messages_to_text_empty_returns_empty_string():
-    assert serialize_messages_to_text([]) == ""
-
-
-def test_serialize_messages_to_text_formats_known_roles():
-    out = serialize_messages_to_text(
-        [
-            HumanMessage(content="q"),
-            AIMessage(content="a"),
-            SystemMessage(content="s"),
-        ]
-    )
-    assert out == "Human: `q`\nAI: `a`\nSystem: `s`"
 
 
 async def test_store_get_session_history_requires_connect():

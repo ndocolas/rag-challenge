@@ -1,59 +1,93 @@
-# Panvel Pharmaceutical Conversational Assistant
+# Panvel — Assistente Conversacional Farmacêutico
 
-LLM-powered conversational assistant that answers two kinds of questions:
+Assistente LLM para informação farmacológica (RAG sobre 20 bulas Anvisa) e consulta a filiais Panvel-PR (tool calling). Respostas em streaming SSE.
 
-1. **Pharmacological information** — RAG over a corpus of 20 real Anvisa drug leaflets.
-2. **Branch (filial) lookups** — Panvel-PR (124 stores) via tool calling.
+## Stack
 
-Stack: Python 3.12 + FastAPI + Gemini (via LangChain) + Qdrant + Redis + React/Vite.
+| Camada | Tecnologia |
+|---|---|
+| Backend | Python 3.12 + FastAPI + uv |
+| LLM + Embeddings | Gemini (`gemini-2.0-flash` + `gemini-embedding-001`) via LangChain |
+| Vector store | Qdrant v1.13.0 (dense + BM25 hybrid, RRF) |
+| Memória | Redis 7 |
+| Observabilidade | LangSmith + logs JSON |
+| Streaming | SSE (`text/event-stream`) |
+| Frontend | React + Vite + TypeScript + Tailwind + shadcn/ui *(em desenvolvimento)* |
 
-Full execution plan: see [tasks/00-overview.md](tasks/00-overview.md).
+## Quick start (Docker)
 
-## Layout
+**Pré-requisitos:** Docker, `data/corpus_bulas/*.pdf` (20 PDFs) e `data/filiais.parquet`.
 
+```bash
+cp .env.example .env                               # preencha GOOGLE_API_KEY
+
+docker compose up -d qdrant redis                  # sobe infra
+docker compose --profile ingest up ingest          # ingestão das bulas (1x)
+docker compose up -d api                           # sobe API
+
+curl http://localhost:8000/health                  # {"status":"ok","env":"dev"}
 ```
-rag-challenge/
-├── src/panvel_assistant/   # FastAPI service (Task 01+)
-├── tests/                  # Unit + integration tests
-├── data/                   # Leaflets, branches parquet, dictionary (Task 01)
-├── requests/               # .rest files for manual route testing
-├── tasks/                  # Linear execution plan (00–12)
-├── Dockerfile              # Backend image
-├── docker-compose.yml      # Local orchestration (backend-only for now)
-└── pyproject.toml          # uv + ruff + pytest config
+
+Teste de chat:
+
+```bash
+curl -N -X POST http://localhost:8000/chat \
+  -H "Content-Type: application/json" \
+  -d '{"session_id":"demo","message":"contraindicações da ritalina"}'
 ```
 
-## Quickstart
+Para derrubar tudo (preservando volumes):
+
+```bash
+docker compose down
+```
+
+Para resetar dados (apaga volumes Qdrant):
+
+```bash
+docker compose down -v
+```
+
+## Dev local (sem Docker)
 
 ```bash
 uv sync
-cp .env.example .env        # fill GOOGLE_API_KEY
+cp .env.example .env        # preencha GOOGLE_API_KEY + ajuste URLs se necessário
 uv run uvicorn panvel_assistant.main:app --reload
 ```
 
 Healthcheck:
 
 ```bash
-curl -s http://localhost:8000/health
-# {"status":"ok","env":"dev"}
+curl http://localhost:8000/health
 ```
 
-## Tests
+## Testes
 
 ```bash
-uv run pytest               # unit tests + coverage (>=70%)
+uv run pytest                        # unit tests (≥90% coverage)
+uv run pytest -m integration         # integration tests (requer Qdrant + Redis)
 uv run ruff check src/ tests/
 ```
 
-## Docker
+## Layout
 
-```bash
-docker compose build backend
-docker compose up -d backend
-curl http://localhost:8000/health
-docker compose down
+```
+rag-challenge/
+├── src/panvel_assistant/   # FastAPI backend
+├── tests/                  # Unit + integration
+├── scripts/                # ingest_bulas.py
+├── data/                   # corpus_bulas/, filiais.parquet
+├── requests/               # .http para testes manuais
+├── tasks/                  # Plano de execução (00–12)
+├── docs/                   # Documentação técnica
+├── Dockerfile
+├── docker-compose.yml
+└── pyproject.toml
 ```
 
-If you don't have a `.env` checked out, the compose file tolerates it
-(`env_file` is `required: false`). Provide your variables via shell env
-or `--env-file path/to/file` as needed.
+## Documentação
+
+- [Arquitetura e componentes](docs/README.md)
+- [ADRs — decisões técnicas](docs/ADRs/)
+- [Queries piloto](docs/queries-piloto.md)

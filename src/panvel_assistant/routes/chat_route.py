@@ -23,7 +23,7 @@ from panvel_assistant.assistant.assistant_service import (
     AssistantService,
     get_assistant_service,
 )
-from panvel_assistant.models.chat import ChatRequest
+from panvel_assistant.models.chat_models import ChatRequest
 from panvel_assistant.services.chat_history_service import (
     RedisHistoryStore,
     get_history_store,

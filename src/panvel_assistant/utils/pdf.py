@@ -21,6 +21,32 @@ _logger_extra = {"component.name": "PdfUtils", "component.version": "v1"}
 PAGE_SEPARATOR = "\n\n[PAGE]\n\n"
 
 
+def _page_text(page) -> str:
+    """Extract text from a single page, appending structured table content.
+
+    pdfplumber's extract_text() often garbles multi-column tables (dates, doses).
+    We append a structured version of each detected table so the raw cell values
+    are always present in the indexed text, even when the layout pass fails.
+    """
+    raw = page.extract_text() or ""
+    tables = page.extract_tables() or []
+    if not tables:
+        return raw
+    table_parts: list[str] = []
+    for table in tables:
+        rows: list[str] = []
+        for row in (table or []):
+            cells = ["" if c is None else str(c).strip() for c in (row or [])]
+            row_text = "  |  ".join(cells)
+            if row_text.strip():
+                rows.append(row_text)
+        if rows:
+            table_parts.append("\n".join(rows))
+    if not table_parts:
+        return raw
+    return raw + "\n\n[TABELAS]\n" + "\n\n".join(table_parts)
+
+
 def extract_text(pdf_path: Path, force: bool = False) -> str:
     """Extract text from ``pdf_path`` and cache the result.
 
@@ -34,7 +60,7 @@ def extract_text(pdf_path: Path, force: bool = False) -> str:
         return cache_file.read_text(encoding="utf-8")
 
     with pdfplumber.open(pdf_path) as pdf:
-        pages = [p.extract_text() or "" for p in pdf.pages]
+        pages = [_page_text(p) for p in pdf.pages]
     text = PAGE_SEPARATOR.join(pages)
     cache_file.write_text(text, encoding="utf-8")
     logger.info(

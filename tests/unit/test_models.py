@@ -5,15 +5,15 @@ from datetime import UTC, datetime
 import pytest
 from pydantic import ValidationError
 
-from panvel_assistant.models.bula import BulaChunk, BulaMetadata
-from panvel_assistant.models.chat import (
+from panvel_assistant.models.bula_models import BulaChunk, BulaMetadata
+from panvel_assistant.models.chat_models import (
     ChatMessage,
     ChatRequest,
     Citation,
     StreamEvent,
 )
-from panvel_assistant.models.filial import FilialResumo
-from panvel_assistant.models.tool import BuscarFiliaisInput, ToolErrorPayload
+from panvel_assistant.models.filial_models import FilialResumo
+from panvel_assistant.models.tool_models import BuscarFiliaisInput, ToolErrorPayload
 
 
 def test_chat_message_serialization():
