@@ -251,7 +251,9 @@ class AssistantService:
             text_chunks.append(text)
             return [encode_text_event("token", text)], "continue"
         if event_type == "tool_call":
-            return [encode_event("tool_call", {"name": event["name"], "args": event["args"]})], "continue"
+            return [
+                encode_event("tool_call", {"name": event["name"], "args": event["args"]})
+            ], "continue"
         if event_type == "tool_result":
             return [encode_event("tool_result", {
                 "name": event["name"],
@@ -440,7 +442,9 @@ class AssistantService:
                         session_id=req.session_id,
                     )
                     persisted = True
-                    yield encode_stream_error(code=control, message=control, trace_id=trace_id_var.get())
+                    yield encode_stream_error(
+                        code=control, message=control, trace_id=trace_id_var.get()
+                    )
                     return
         except asyncio.CancelledError:
             cancelled = True

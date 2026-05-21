@@ -17,9 +17,9 @@ import asyncio
 import json
 import secrets
 import time
-from datetime import UTC, datetime
 from collections.abc import Sequence
 from contextlib import asynccontextmanager
+from datetime import UTC, datetime
 from functools import lru_cache
 from urllib.parse import urlsplit, urlunsplit
 
@@ -285,7 +285,9 @@ class RedisHistoryStore:
         Both keys share the chat history TTL so stale sessions auto-expire.
         """
         flag_key = f"sessions:meta:{session_id}"
-        is_new = await self.client.set(flag_key, "1", nx=True, ex=self._settings.CHAT_HISTORY_TTL_SECONDS)  # type: ignore[misc]
+        is_new = await self.client.set(  # type: ignore[misc]
+            flag_key, "1", nx=True, ex=self._settings.CHAT_HISTORY_TTL_SECONDS
+        )
         if not is_new:
             return
         now = datetime.now(UTC)

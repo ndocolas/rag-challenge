@@ -32,7 +32,6 @@ from qdrant_client.models import (
 
 from panvel_assistant.assistant.sectionizer import (
     Section,
-    detect_med_variants,
     extract_variant_names,
     sectionize,
 )

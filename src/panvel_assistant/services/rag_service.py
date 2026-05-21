@@ -177,7 +177,9 @@ class RAGService:
         chunks = await self._query_and_dedup(dense, sparse_idx, sparse_val, qfilter, k)
 
         if not chunks and section_hint:
-            qfilter_broad = RAGService._build_filter(med_name, None, patient_facing_only, med_variant)
+            qfilter_broad = RAGService._build_filter(
+                med_name, None, patient_facing_only, med_variant
+            )
             chunks = await self._query_and_dedup(dense, sparse_idx, sparse_val, qfilter_broad, k)
             logger.info(
                 "section_hint_fallback",
@@ -278,7 +280,11 @@ class RAGService:
                 continue
             seen_chunk_ids.add(chunk_id)
             if payload.get("is_full_section"):
-                key = (payload.get("bula_id", ""), payload.get("section_canonical", ""), payload.get("med_variant"))
+                key = (
+                    payload.get("bula_id", ""),
+                    payload.get("section_canonical", ""),
+                    payload.get("med_variant"),
+                )
                 if key in seen_full_sections:
                     continue
                 seen_full_sections.add(key)
