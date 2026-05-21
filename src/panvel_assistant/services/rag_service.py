@@ -271,7 +271,7 @@ class RAGService:
           two distinct slices of the same long section can co-occur.
         """
         seen_chunk_ids: set[str] = set()
-        seen_full_sections: set[tuple[str, str]] = set()
+        seen_full_sections: set[tuple[str, str, str | None]] = set()
         chunks: list[BulaChunk] = []
         for p in points:
             payload = p.payload or {}

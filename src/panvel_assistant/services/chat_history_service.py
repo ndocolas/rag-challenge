@@ -285,7 +285,7 @@ class RedisHistoryStore:
         Both keys share the chat history TTL so stale sessions auto-expire.
         """
         flag_key = f"sessions:meta:{session_id}"
-        is_new = await self.client.set(  # type: ignore[misc]
+        is_new = await self.client.set(
             flag_key, "1", nx=True, ex=self._settings.CHAT_HISTORY_TTL_SECONDS
         )
         if not is_new:
@@ -310,7 +310,7 @@ class RedisHistoryStore:
         Sessions whose data hash has expired (TTL elapsed) are skipped silently —
         the frontend handles 404 on history load by removing the stale entry.
         """
-        session_ids: list[str] = await self.client.zrevrange(self._SESSIONS_INDEX_KEY, 0, -1)  # type: ignore[misc]
+        session_ids: list[str] = await self.client.zrevrange(self._SESSIONS_INDEX_KEY, 0, -1)
         result: list[dict] = []
         for sid in session_ids:
             data = await self.client.hgetall(f"sessions:data:{sid}")  # type: ignore[misc]

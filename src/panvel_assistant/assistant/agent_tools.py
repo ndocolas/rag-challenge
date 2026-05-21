@@ -70,7 +70,7 @@ def build_tools(
         try:
             total, filiais = filiais_service.buscar(
                 cidade=cidade,
-                servicos=servicos,  # type: ignore[arg-type]
+                servicos=servicos,
                 tipo_estabelecimento=tipo_estabelecimento,
                 faixa_vida=faixa_vida,
                 min_metragem=min_metragem,
@@ -113,7 +113,7 @@ def build_tools(
             return ToolErrorPayload(
                 error="codigo_invalido",
                 message=f"Branch '{codigo_filial}' does not exist in the registry.",
-                hint={"suggestion": "use buscar_filiais to list valid codes"},
+                hint={"sugestao": "use buscar_filiais to list valid codes"},
             ).model_dump_json()
         finally:
             logger.info(

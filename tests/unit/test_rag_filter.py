@@ -56,3 +56,11 @@ def test_empty_med_name_is_treated_as_absent():
     # Empty string should be skipped (falsy) — avoids matching empty payloads.
     f = RAGService._build_filter("", None, False)
     assert f is None
+
+
+def test_med_variant_adds_condition():
+    f = RAGService._build_filter("Ritalina", None, False, med_variant="RITALINA LA")
+    assert f is not None
+    conds = _conditions(f)
+    assert ("med_name", "Ritalina") in conds
+    assert ("med_variant", "RITALINA LA") in conds

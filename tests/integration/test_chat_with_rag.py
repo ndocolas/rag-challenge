@@ -65,6 +65,7 @@ class _FakeRAGService:
         query: str,
         k: int = 4,
         med_name: str | None = None,
+        med_variant: str | None = None,
         section_hint: str | None = None,
         patient_facing_only: bool = True,
     ) -> list[BulaChunk]:
