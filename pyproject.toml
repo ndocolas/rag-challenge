@@ -4,7 +4,7 @@ version = "0.1.0"
 description = "RAG Bulas — Assistente farmacêutico sobre bulas Anvisa + tool calling em filiais."
 readme = "README.md"
 authors = [
-    { name = "Nicolas Docolas", email = "nicolas.docolas1804@gmail.com" }
+    { name = "Nicolas Docolas", email = "nicolas@docolas.com.br" }
 ]
 requires-python = ">=3.12"
 dependencies = [
