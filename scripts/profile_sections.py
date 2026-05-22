@@ -17,9 +17,9 @@ import statistics
 from collections import defaultdict
 from pathlib import Path
 
-from panvel_assistant.assistant.sectionizer import sectionize
-from panvel_assistant.utils.pdf import extract_text
-from panvel_assistant.utils.settings import settings
+from bulas_assistant.assistant.sectionizer import sectionize
+from bulas_assistant.utils.pdf import extract_text
+from bulas_assistant.utils.settings import settings
 
 THRESHOLD_CANDIDATES = (2000, 3500, 6000)
 SUB_CHUNK_SIZE = 1600  # matches ingestion_service splitter

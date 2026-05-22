@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from panvel_assistant.assistant.sectionizer import (
+from bulas_assistant.assistant.sectionizer import (
     detect_med_variants,
     extract_variant_names,
     sectionize,

@@ -13,12 +13,12 @@ from collections.abc import AsyncIterator
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage
 
-from panvel_assistant.assistant.assistant_service import (
+from bulas_assistant.assistant.assistant_service import (
     _coerce_content_to_text,
     assistant_service,
 )
-from panvel_assistant.models.chat_models import ChatRequest
-from panvel_assistant.services import chat_history_service
+from bulas_assistant.models.chat_models import ChatRequest
+from bulas_assistant.services import chat_history_service
 
 
 class _FakeHistory:

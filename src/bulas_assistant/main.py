@@ -1,4 +1,4 @@
-"""FastAPI application factory for the Panvel Assistant."""
+"""FastAPI application factory for the Bulas Assistant."""
 
 from __future__ import annotations
 
@@ -13,21 +13,21 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, Response
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from panvel_assistant.routes.admin_route import router as admin_router
-from panvel_assistant.routes.chat_route import router as chat_router
-from panvel_assistant.routes.sessions_route import router as sessions_router
-from panvel_assistant.services.chat_history_service import get_history_store
-from panvel_assistant.services.filiais_service import filiais_service
-from panvel_assistant.services.trace_service import trace_service
-from panvel_assistant.utils.exceptions import AppError
-from panvel_assistant.utils.handle_errors import (
+from bulas_assistant.routes.admin_route import router as admin_router
+from bulas_assistant.routes.chat_route import router as chat_router
+from bulas_assistant.routes.sessions_route import router as sessions_router
+from bulas_assistant.services.chat_history_service import get_history_store
+from bulas_assistant.services.filiais_service import filiais_service
+from bulas_assistant.services.trace_service import trace_service
+from bulas_assistant.utils.exceptions import AppError
+from bulas_assistant.utils.handle_errors import (
     app_error_handler,
     http_exception_handler,
     unhandled_exception_handler,
     validation_exception_handler,
 )
-from panvel_assistant.utils.logger import get_logger, trace_id_var
-from panvel_assistant.utils.settings import Settings, get_settings
+from bulas_assistant.utils.logger import get_logger, trace_id_var
+from bulas_assistant.utils.settings import Settings, get_settings
 
 logging.basicConfig(
     level=logging.INFO,
@@ -142,7 +142,7 @@ class BodySizeLimitMiddleware:
 
 
 async def _send_413(send, *, max_bytes: int, declared: int) -> None:
-    from panvel_assistant.utils.handle_errors import error_response_payload
+    from bulas_assistant.utils.handle_errors import error_response_payload
 
     payload = error_response_payload(
         code="payload_too_large",
@@ -178,7 +178,7 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 def create_app(settings: Settings | None = None) -> FastAPI:
     """Build and configure the FastAPI instance."""
     cfg = settings or get_settings()
-    app = FastAPI(title="Panvel Assistant", lifespan=lifespan)
+    app = FastAPI(title="Bulas Assistant", lifespan=lifespan)
 
     allow_headers = ["Content-Type"]
     if cfg.ALLOW_AUTHORIZATION_HEADER:

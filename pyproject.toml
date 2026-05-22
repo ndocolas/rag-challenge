@@ -1,10 +1,10 @@
 [project]
-name = "panvel-assistant"
+name = "bulas-assistant"
 version = "0.1.0"
-description = "Panvel Assistente Conversacional Farmacêutico — RAG sobre bulas + tool calling em filiais."
+description = "RAG Bulas — Assistente farmacêutico sobre bulas Anvisa + tool calling em filiais."
 readme = "README.md"
 authors = [
-    { name = "Nicolas Docolas", email = "nicolas.docolas1804@gmail.com" }
+    { name = "Nicolas Docolas", email = "nicolas@docolas.com.br" }
 ]
 requires-python = ">=3.12"
 dependencies = [
@@ -62,12 +62,12 @@ ban-relative-imports = "all"
 "tests/**/*.py" = ["B017", "S101"]
 # FastAPI's recommended idiom uses Depends() in argument defaults; B008 fires
 # false positives there. Route modules are the only place we accept this.
-"src/panvel_assistant/routes/*.py" = ["B008"]
+"src/bulas_assistant/routes/*.py" = ["B008"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]
-addopts = "--cov=panvel_assistant --cov-report=term-missing --cov-fail-under=90"
+addopts = "--cov=bulas_assistant --cov-report=term-missing --cov-fail-under=90"
 markers = [
     "integration: end-to-end tests that hit external services (Qdrant, Gemini)",
 ]
@@ -81,4 +81,4 @@ warn_unused_ignores = true
 warn_redundant_casts = true
 warn_return_any = false
 no_implicit_optional = true
-files = ["src/panvel_assistant"]
+files = ["src/bulas_assistant"]

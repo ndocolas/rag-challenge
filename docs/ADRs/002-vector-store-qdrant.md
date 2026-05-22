@@ -25,7 +25,7 @@ Alternativas avaliadas:
 
 Usar **Qdrant v1.13.0**:
 
-- Coleção `bulas_panvel` com dois vetores nomeados: `dense` (cosine, 3072-dim) e `bm25` (sparse, via `fastembed` + modelo `Qdrant/bm25`)
+- Coleção `bulas` com dois vetores nomeados: `dense` (cosine, 3072-dim) e `bm25` (sparse, via `fastembed` + modelo `Qdrant/bm25`)
 - Busca híbrida com dois `Prefetch` paralelos + `Fusion.RRF` server-side
 - Filtros por payload: `med_name`, `section_canonical`, `patient_facing`
 - Volume Docker nomeado `qdrant_data` para persistência entre reinicializações

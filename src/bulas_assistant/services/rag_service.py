@@ -26,11 +26,11 @@ from qdrant_client.models import (
     SparseVector,
 )
 
-from panvel_assistant.models.bula_models import BulaChunk, BulaMetadata
-from panvel_assistant.models.chat_models import Citation
-from panvel_assistant.services.trace_service import trace_service
-from panvel_assistant.utils.logger import get_logger
-from panvel_assistant.utils.settings import settings
+from bulas_assistant.models.bula_models import BulaChunk, BulaMetadata
+from bulas_assistant.models.chat_models import Citation
+from bulas_assistant.services.trace_service import trace_service
+from bulas_assistant.utils.logger import get_logger
+from bulas_assistant.utils.settings import settings
 
 logger = get_logger(__name__)
 _logger_extra = {"component.name": "RagService", "component.version": "v1"}
@@ -63,7 +63,7 @@ def _section_label(canonical: str) -> str:
 
 
 class RAGService:
-    """Hybrid retrieval over the ``bulas_panvel`` Qdrant collection."""
+    """Hybrid retrieval over the ``bulas`` Qdrant collection."""
 
     def __init__(self) -> None:
         self._embedder = GoogleGenerativeAIEmbeddings(  # type: ignore[call-arg]

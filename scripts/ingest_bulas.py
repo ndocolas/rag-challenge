@@ -13,7 +13,7 @@ import argparse
 import asyncio
 from pathlib import Path
 
-from panvel_assistant.services.ingestion_service import ingestion_service
+from bulas_assistant.services.ingestion_service import ingestion_service
 
 
 async def _main() -> None:

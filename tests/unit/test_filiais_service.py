@@ -7,8 +7,8 @@ from pathlib import Path
 import pandas as pd
 import pytest
 
-from panvel_assistant.services.filiais_service import FiliaisService
-from panvel_assistant.utils.exceptions import InvalidRequestError, ResourceNotFoundError
+from bulas_assistant.services.filiais_service import FiliaisService
+from bulas_assistant.utils.exceptions import InvalidRequestError, ResourceNotFoundError
 
 # ---------------------------------------------------------------------------
 # Fixture: a tiny parquet covering 3 cities and a mix of services / tipos.
@@ -23,7 +23,7 @@ _ROWS = [
         "tipo_estabelecimento": "BAIRRO",
         "delivery": "SIM",
         "metragem_area_venda": 200.0,
-        "panvel_clinic": "SIM",
+        "clinic": "SIM",
         "estacionamento": "SIM",
         "atendimento_24_horas": "SIM",
     },
@@ -35,7 +35,7 @@ _ROWS = [
         "tipo_estabelecimento": "SHOPPING",
         "delivery": "NÃO",
         "metragem_area_venda": 80.0,
-        "panvel_clinic": "NÃO",
+        "clinic": "NÃO",
         "estacionamento": "SIM",
         "atendimento_24_horas": "NÃO",
     },
@@ -47,7 +47,7 @@ _ROWS = [
         "tipo_estabelecimento": "CENTRO",
         "delivery": "SIM",
         "metragem_area_venda": 500.0,
-        "panvel_clinic": "SIM",
+        "clinic": "SIM",
         "estacionamento": "NÃO",
         "atendimento_24_horas": "NÃO",
     },
@@ -59,7 +59,7 @@ _ROWS = [
         "tipo_estabelecimento": "BAIRRO",
         "delivery": "SIM",
         "metragem_area_venda": 150.0,
-        "panvel_clinic": "NÃO",
+        "clinic": "NÃO",
         "estacionamento": "NÃO",
         "atendimento_24_horas": "NÃO",
     },
@@ -134,7 +134,7 @@ def test_buscar_cidade_invalida_raises_with_marker_prefix(service: FiliaisServic
 def test_buscar_servicos_and_combination(service: FiliaisService):
     total, items = service.buscar(
         cidade="CURITIBA",
-        servicos=["panvel_clinic", "atendimento_24_horas"],
+        servicos=["clinic", "atendimento_24_horas"],
     )
     assert total == 1
     assert items[0].codigo_filial == "100"
@@ -167,7 +167,7 @@ def test_buscar_limit_truncates_but_preserves_total(service: FiliaisService):
 
 def test_buscar_resumo_lists_only_active_services(service: FiliaisService):
     _, items = service.buscar(cidade="LONDRINA")
-    assert items[0].servicos_ativos == ["panvel_clinic", "delivery"]
+    assert items[0].servicos_ativos == ["clinic", "delivery"]
 
 
 # D14 — confirm that every enum literal in models/filial.py still matches the
@@ -176,8 +176,8 @@ def test_real_parquet_values_satisfy_model_literals():
     """Load the production parquet and assert the Pydantic models accept every row."""
     from typing import get_args
 
-    from panvel_assistant.models.filial_models import FaixaVida, TipoEstabelecimento
-    from panvel_assistant.utils.settings import get_settings
+    from bulas_assistant.models.filial_models import FaixaVida, TipoEstabelecimento
+    from bulas_assistant.utils.settings import get_settings
 
     parquet = get_settings().FILIAIS_PARQUET
     if not parquet.is_file():

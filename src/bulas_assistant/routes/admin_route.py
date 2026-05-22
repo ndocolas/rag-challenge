@@ -4,8 +4,8 @@ from __future__ import annotations
 
 from fastapi import APIRouter, HTTPException
 
-from panvel_assistant.services.trace_service import trace_service
-from panvel_assistant.utils.handle_errors import handle_errors
+from bulas_assistant.services.trace_service import trace_service
+from bulas_assistant.utils.handle_errors import handle_errors
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 

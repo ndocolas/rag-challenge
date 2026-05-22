@@ -1,4 +1,4 @@
-"""Domain exception hierarchy for the Panvel Assistant."""
+"""Domain exception hierarchy for the Bulas Assistant."""
 
 
 class AppError(Exception):

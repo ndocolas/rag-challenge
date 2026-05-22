@@ -7,8 +7,8 @@ import json
 import pytest
 from fakeredis import aioredis as fake_aioredis
 
-from panvel_assistant.services.trace_service import TraceService
-from panvel_assistant.utils.logger import trace_id_var
+from bulas_assistant.services.trace_service import TraceService
+from bulas_assistant.utils.logger import trace_id_var
 
 
 @pytest.fixture

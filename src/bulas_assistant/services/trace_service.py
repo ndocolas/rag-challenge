@@ -14,8 +14,8 @@ from typing import Any
 
 import redis.asyncio as redis
 
-from panvel_assistant.utils.logger import get_logger, trace_id_var
-from panvel_assistant.utils.settings import settings
+from bulas_assistant.utils.logger import get_logger, trace_id_var
+from bulas_assistant.utils.settings import settings
 
 logger = get_logger(__name__)
 

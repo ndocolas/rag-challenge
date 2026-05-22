@@ -9,7 +9,7 @@ import pytest
 from fastapi import HTTPException
 from pydantic import BaseModel, ValidationError
 
-from panvel_assistant.utils.exceptions import (
+from bulas_assistant.utils.exceptions import (
     AppError,
     InvalidRequestError,
     LLMProviderError,
@@ -17,10 +17,10 @@ from panvel_assistant.utils.exceptions import (
     RetrievalError,
     ToolExecutionError,
 )
-from panvel_assistant.utils.handle_errors import handle_errors
-from panvel_assistant.utils.logger import JsonFormatter, get_logger, trace_id_var
-from panvel_assistant.utils.settings import Settings
-from panvel_assistant.utils.sse import encode_event, encode_text_event
+from bulas_assistant.utils.handle_errors import handle_errors
+from bulas_assistant.utils.logger import JsonFormatter, get_logger, trace_id_var
+from bulas_assistant.utils.settings import Settings
+from bulas_assistant.utils.sse import encode_event, encode_text_event
 
 
 def test_settings_load_from_env(monkeypatch):
@@ -105,7 +105,7 @@ async def test_handle_errors_provider_error_is_503_and_redacted():
 
 
 async def test_handle_errors_session_busy_is_409():
-    from panvel_assistant.utils.exceptions import SessionBusyError
+    from bulas_assistant.utils.exceptions import SessionBusyError
 
     @handle_errors
     async def route():
@@ -135,7 +135,7 @@ def test_logger_emits_json_with_trace_id():
     handler = logging.StreamHandler(buffer)
     handler.setFormatter(JsonFormatter())
 
-    logger = logging.getLogger("panvel_assistant.test.logger")
+    logger = logging.getLogger("bulas_assistant.test.logger")
     logger.handlers.clear()
     logger.addHandler(handler)
     logger.setLevel(logging.INFO)
@@ -151,15 +151,15 @@ def test_logger_emits_json_with_trace_id():
     assert payload["message"] == "retrieval finished"
     assert payload["trace_id"] == "trace-xyz"
     assert payload["level"] == "INFO"
-    assert payload["logger"] == "panvel_assistant.test.logger"
+    assert payload["logger"] == "bulas_assistant.test.logger"
     assert payload["step"] == "retrieval"
     assert payload["k"] == 4
     assert "timestamp" in payload
 
 
 def test_logger_get_logger_is_idempotent():
-    a = get_logger("panvel_assistant.test.idempotent")
-    b = get_logger("panvel_assistant.test.idempotent")
+    a = get_logger("bulas_assistant.test.idempotent")
+    b = get_logger("bulas_assistant.test.idempotent")
     assert a is b
     assert len(a.handlers) == 1
 
@@ -205,7 +205,7 @@ def test_exceptions_hierarchy():
 
 
 async def test_health_endpoint_returns_ok_and_trace_id():
-    from panvel_assistant.main import app
+    from bulas_assistant.main import app
 
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
@@ -218,7 +218,7 @@ async def test_health_endpoint_returns_ok_and_trace_id():
 
 
 async def test_health_endpoint_generates_trace_id_when_absent():
-    from panvel_assistant.main import app
+    from bulas_assistant.main import app
 
     transport = httpx.ASGITransport(app=app)
     async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
@@ -243,7 +243,7 @@ def test_validation_error_raised_outside_route_still_caught():
 
 
 def test_map_app_error_base_app_error_maps_to_500():
-    from panvel_assistant.utils.handle_errors import _map_app_error
+    from bulas_assistant.utils.handle_errors import _map_app_error
 
     status, code, _ = _map_app_error(AppError("raw error"))
     assert status == 500
@@ -264,7 +264,7 @@ async def test_app_error_handler_500_level_error():
 
     from fastapi import Request
 
-    from panvel_assistant.utils.handle_errors import app_error_handler
+    from bulas_assistant.utils.handle_errors import app_error_handler
 
     req = MagicMock(spec=Request)
     response = await app_error_handler(req, AppError("raw 500 error"))
@@ -278,7 +278,7 @@ async def test_http_exception_handler_dict_with_error_key():
 
     from fastapi import HTTPException, Request
 
-    from panvel_assistant.utils.handle_errors import http_exception_handler
+    from bulas_assistant.utils.handle_errors import http_exception_handler
 
     req = MagicMock(spec=Request)
     exc = HTTPException(status_code=400, detail={"error": {"code": "x", "status_code": 400}})
@@ -291,7 +291,7 @@ async def test_http_exception_handler_plain_dict_detail():
 
     from fastapi import HTTPException, Request
 
-    from panvel_assistant.utils.handle_errors import http_exception_handler
+    from bulas_assistant.utils.handle_errors import http_exception_handler
 
     req = MagicMock(spec=Request)
     exc = HTTPException(status_code=400, detail={"message": "bad input"})
@@ -306,7 +306,7 @@ async def test_unhandled_exception_handler():
 
     from fastapi import Request
 
-    from panvel_assistant.utils.handle_errors import unhandled_exception_handler
+    from bulas_assistant.utils.handle_errors import unhandled_exception_handler
 
     req = MagicMock(spec=Request)
     response = await unhandled_exception_handler(req, RuntimeError("chaos"))
@@ -320,7 +320,7 @@ def test_json_formatter_includes_exc_info():
     handler = logging.StreamHandler(buffer)
     handler.setFormatter(JsonFormatter())
 
-    exc_logger = logging.getLogger("panvel_assistant.test.exc_info")
+    exc_logger = logging.getLogger("bulas_assistant.test.exc_info")
     exc_logger.handlers.clear()
     exc_logger.addHandler(handler)
     exc_logger.setLevel(logging.ERROR)
@@ -339,8 +339,8 @@ def test_json_formatter_includes_exc_info():
 async def test_ready_endpoint_redis_up(monkeypatch):
     from unittest.mock import AsyncMock
 
-    from panvel_assistant.main import app
-    from panvel_assistant.services.chat_history_service import get_history_store
+    from bulas_assistant.main import app
+    from bulas_assistant.services.chat_history_service import get_history_store
 
     monkeypatch.setattr(get_history_store(), "ping", AsyncMock(return_value=True))
 
@@ -355,8 +355,8 @@ async def test_ready_endpoint_redis_up(monkeypatch):
 async def test_ready_endpoint_redis_down(monkeypatch):
     from unittest.mock import AsyncMock
 
-    from panvel_assistant.main import app
-    from panvel_assistant.services.chat_history_service import get_history_store
+    from bulas_assistant.main import app
+    from bulas_assistant.services.chat_history_service import get_history_store
 
     monkeypatch.setattr(get_history_store(), "ping", AsyncMock(return_value=False))
 
@@ -369,7 +369,7 @@ async def test_ready_endpoint_redis_down(monkeypatch):
 
 
 def test_create_app_allows_authorization_header():
-    from panvel_assistant.main import create_app
+    from bulas_assistant.main import create_app
 
     app_instance = create_app(Settings(GOOGLE_API_KEY="test-key", ALLOW_AUTHORIZATION_HEADER=True))
     assert app_instance is not None
@@ -378,7 +378,7 @@ def test_create_app_allows_authorization_header():
 def test_client_ip_uses_x_forwarded_for():
     from unittest.mock import MagicMock
 
-    from panvel_assistant.routes.chat_route import _client_ip
+    from bulas_assistant.routes.chat_route import _client_ip
 
     req = MagicMock()
     req.headers = {"x-forwarded-for": "203.0.113.5, 10.0.0.1"}
@@ -386,17 +386,17 @@ def test_client_ip_uses_x_forwarded_for():
 
 
 def test_resolve_log_level_falls_back_to_info_on_error(monkeypatch):
-    from panvel_assistant.utils.logger import _resolve_log_level
+    from bulas_assistant.utils.logger import _resolve_log_level
 
     def _raise():
         raise RuntimeError("settings unavailable")
 
-    monkeypatch.setattr("panvel_assistant.utils.settings.get_settings", _raise)
+    monkeypatch.setattr("bulas_assistant.utils.settings.get_settings", _raise)
     assert _resolve_log_level() == "INFO"
 
 
 async def test_body_size_limit_middleware_rejects_declared_oversized_request():
-    from panvel_assistant.main import BodySizeLimitMiddleware
+    from bulas_assistant.main import BodySizeLimitMiddleware
 
     sent: list[dict] = []
 
@@ -421,7 +421,7 @@ async def test_body_size_limit_middleware_rejects_declared_oversized_request():
 
 
 async def test_body_size_limit_middleware_passes_through_non_http_request_message():
-    from panvel_assistant.main import BodySizeLimitMiddleware
+    from bulas_assistant.main import BodySizeLimitMiddleware
 
     inner_received: list[dict] = []
 

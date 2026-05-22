@@ -12,7 +12,7 @@ from functools import lru_cache
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-from panvel_assistant.utils.settings import get_settings
+from bulas_assistant.utils.settings import get_settings
 
 
 @lru_cache(maxsize=1)
