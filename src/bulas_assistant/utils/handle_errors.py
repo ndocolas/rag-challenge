@@ -93,6 +93,10 @@ def handle_errors(func):
             return res
         except HTTPException:
             raise
+        except RateLimitedError:
+            # Re-raise so the global app_error_handler handles it with the
+            # full rate-limit context (limit, count, Retry-After headers).
+            raise
         except AppError as exc:
             status_code, code, message = _map_app_error(exc)
             if status_code >= 500:
