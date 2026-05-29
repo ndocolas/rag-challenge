@@ -1,34 +1,34 @@
-# RAG Bulas — Assistente Farmacêutico
+# RAG Bulas — Pharmaceutical Assistant
 
-Assistente LLM para informação farmacológica (RAG sobre 20 bulas Anvisa) e consulta a filiais do PR (tool calling). Respostas em streaming SSE.
+LLM assistant for pharmacological information (RAG over 20 Anvisa drug leaflets) and branch lookup (tool calling). Token-by-token SSE streaming.
 
 ## Stack
 
-| Camada | Tecnologia |
+| Layer | Technology |
 |---|---|
 | Backend | Python 3.12 + FastAPI + uv |
 | LLM + Embeddings | Gemini (`gemini-3-flash-preview` + `gemini-embedding-001`) via LangChain |
 | Vector store | Qdrant v1.13.0 (dense + BM25 hybrid, RRF) |
-| Memória | Redis 7 |
-| Observabilidade | LangSmith + logs JSON |
+| Memory | Redis 7 |
+| Observability | LangSmith + structured JSON logs |
 | Streaming | SSE (`text/event-stream`) |
-| Frontend | React + Vite + TypeScript + Tailwind + shadcn/ui *(em desenvolvimento)* |
+| Frontend | React + Vite + TypeScript + Tailwind + shadcn/ui *(in development)* |
 
 ## Quick start (Docker)
 
-**Pré-requisitos:** Docker, `data/corpus_bulas/*.pdf` (20 PDFs) e `data/filiais.parquet`.
+**Prerequisites:** Docker, `data/corpus_bulas/*.pdf` (20 PDFs) and `data/filiais.parquet`.
 
 ```bash
-cp .env.example .env                               # preencha GOOGLE_API_KEY
+cp .env.example .env                               # fill in GOOGLE_API_KEY
 
-docker compose up -d qdrant redis                  # sobe infra
-docker compose --profile ingest up ingest          # ingestão das bulas (1x)
-docker compose up -d api                           # sobe API
+docker compose up -d qdrant redis                  # start infrastructure
+docker compose --profile ingest up ingest          # ingest drug leaflets (once)
+docker compose up -d api                           # start API
 
 curl http://localhost:8000/health                  # {"status":"ok","env":"dev"}
 ```
 
-Teste de chat:
+Chat test:
 
 ```bash
 curl -N -X POST http://localhost:8000/chat \
@@ -36,23 +36,23 @@ curl -N -X POST http://localhost:8000/chat \
   -d '{"session_id":"demo","message":"contraindicações da ritalina"}'
 ```
 
-Para derrubar tudo (preservando volumes):
+Stop everything (preserve volumes):
 
 ```bash
 docker compose down
 ```
 
-Para resetar dados (apaga volumes Qdrant):
+Reset data (delete Qdrant volumes):
 
 ```bash
 docker compose down -v
 ```
 
-## Dev local (sem Docker)
+## Local dev (without Docker)
 
 ```bash
 uv sync
-cp .env.example .env        # preencha GOOGLE_API_KEY + ajuste URLs se necessário
+cp .env.example .env        # fill in GOOGLE_API_KEY + adjust URLs if needed
 uv run uvicorn bulas_assistant.main:app --reload
 ```
 
@@ -62,11 +62,11 @@ Healthcheck:
 curl http://localhost:8000/health
 ```
 
-## Testes
+## Tests
 
 ```bash
 uv run pytest                        # unit tests (≥90% coverage)
-uv run pytest -m integration         # integration tests (requer Qdrant + Redis)
+uv run pytest -m integration         # integration tests (requires Qdrant + Redis)
 uv run ruff check src/ tests/
 ```
 
@@ -78,16 +78,16 @@ rag-challenge/
 ├── tests/                  # Unit + integration
 ├── scripts/                # ingest_bulas.py
 ├── data/                   # corpus_bulas/, filiais.parquet
-├── requests/               # .http para testes manuais
-├── tasks/                  # Plano de execução (00–12)
-├── docs/                   # Documentação técnica
+├── requests/               # .http files for manual testing
+├── tasks/                  # Execution plan (00–12)
+├── docs/                   # Technical documentation
 ├── Dockerfile
 ├── docker-compose.yml
 └── pyproject.toml
 ```
 
-## Documentação
+## Documentation
 
-- [Arquitetura e componentes](docs/README.md)
-- [ADRs — decisões técnicas](docs/ADRs/)
-- [Queries piloto](docs/queries-piloto.md)
+- [Architecture and components](docs/README.md)
+- [ADRs — technical decisions](docs/ADRs/)
+- [Pilot queries](docs/queries-piloto.md)

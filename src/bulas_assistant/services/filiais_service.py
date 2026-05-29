@@ -112,7 +112,7 @@ def _row_to_completa(row: dict) -> FilialCompleta:
         delivery=_bool(row.get("delivery"), field="delivery", codigo=codigo),
         metragem_area_venda=float(row["metragem_area_venda"]),
         clinic=_bool(
-            row.get("clinic") if "clinic" in row else row.get("panvel_clinic"),
+            row.get("clinic"),
             field="clinic",
             codigo=codigo,
         ),

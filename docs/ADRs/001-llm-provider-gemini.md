@@ -1,44 +1,44 @@
 # ADR 001: LLM provider — Google Gemini
 
-**Status:** Aceito
-**Data:** 2026-05-20
+**Status:** Accepted
+**Date:** 2026-05-20
 
-## Contexto
+## Context
 
-O assistente precisa de um modelo de linguagem que suporte simultaneamente:
+The assistant needs a language model that simultaneously supports:
 
-- Tool calling nativo (para invocar ferramentas de filiais e RAG)
-- Streaming token-a-token (SSE)
-- Geração de embeddings (para ingestão e retrieval)
-- Boa qualidade em português brasileiro
-- Custo acessível para um MVP com 20 bulas e ~100 req/dia
+- Native tool calling (to invoke branch and RAG tools)
+- Token-by-token streaming (SSE)
+- Embedding generation (for ingestion and retrieval)
+- Good quality in Brazilian Portuguese
+- Affordable cost for an MVP with 20 leaflets and ~100 req/day
 
-Alternativas avaliadas:
+Evaluated alternatives:
 
-| Provedor | Motivo de descarte |
+| Provider | Reason for rejection |
 |---|---|
-| OpenAI GPT-4o | Custo elevado; embeddings separados (`text-embedding-3`) aumentam complexidade |
-| Anthropic Claude | Não oferece embeddings próprios; necessitaria segundo provedor |
-| AWS Bedrock | Setup pesado (IAM, VPC, credenciais temporárias); latência extra |
-| Modelos locais (Ollama) | Qualidade insuficiente em PT-BR para tool calling + RAG |
+| OpenAI GPT-4o | High cost; separate embeddings (`text-embedding-3`) increase complexity |
+| Anthropic Claude | No proprietary embeddings; would require a second provider |
+| AWS Bedrock | Heavy setup (IAM, VPC, temporary credentials); extra latency |
+| Local models (Ollama) | Insufficient quality in PT-BR for tool calling + RAG |
 
-## Decisão
+## Decision
 
-Usar **Google Gemini** como provedor único:
+Use **Google Gemini** as the sole provider:
 
-- Chat: `gemini-3-flash-preview` (`temperature=0.2`, streaming habilitado)
-- Embeddings: `gemini-embedding-001` (3072 dimensões, task types `RETRIEVAL_DOCUMENT` / `RETRIEVAL_QUERY`)
-- Integração via **LangChain** (`ChatGoogleGenerativeAI` + `GoogleGenerativeAIEmbeddings`)
+- Chat: `gemini-3-flash-preview` (`temperature=0.2`, streaming enabled)
+- Embeddings: `gemini-embedding-001` (3072 dimensions, task types `RETRIEVAL_DOCUMENT` / `RETRIEVAL_QUERY`)
+- Integration via **LangChain** (`ChatGoogleGenerativeAI` + `GoogleGenerativeAIEmbeddings`)
 
-## Consequências
+## Consequences
 
-**Positivas:**
-- Free tier generoso cobre o volume do MVP sem custo
-- Cliente unificado via LangChain: trocar de provedor exige alterar apenas `builders.py`
-- LangSmith traça chamadas Gemini automaticamente (via LangChain callbacks)
-- Embeddings 3072-dim suficientes para corpus de 20 bulas; BM25 complementa o recall
+**Positive:**
+- Generous free tier covers MVP volume at no cost
+- Unified client via LangChain: changing provider requires modifying only `builders.py`
+- LangSmith traces Gemini calls automatically (via LangChain callbacks)
+- 3072-dim embeddings sufficient for 20-leaflet corpus; BM25 complements recall
 
-**Negativas / trade-offs:**
-- Dependência de um único provedor externo (disponibilidade e rate limits do Google)
-- Embeddings 3072-dim vs 1536-dim do OpenAI: vetor maior, mas corpus pequeno não é gargalo
-- `gemini-3-flash-preview` não é o modelo mais capaz da família; aceitável para o escopo
+**Negative / trade-offs:**
+- Dependency on a single external provider (Google availability and rate limits)
+- 3072-dim embeddings vs 1536-dim from OpenAI: larger vector, but small corpus is not a bottleneck
+- `gemini-3-flash-preview` is not the most capable model in the family; acceptable for the scope

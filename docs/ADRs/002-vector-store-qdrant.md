@@ -1,45 +1,45 @@
 # ADR 002: Vector store — Qdrant
 
-**Status:** Aceito
-**Data:** 2026-05-20
+**Status:** Accepted
+**Date:** 2026-05-20
 
-## Contexto
+## Context
 
-O sistema precisa de um vector store que suporte:
+The system needs a vector store that supports:
 
-- Busca híbrida (vetores densos + esparsos) com fusão no servidor
-- Filtros por metadados de payload (nome do medicamento, seção canônica, perfil do leitor)
-- Deploy simples via Docker, com persistência em volume
-- Qualidade de produção (healthcheck, índices configuráveis, sem estado em memória)
+- Hybrid search (dense + sparse vectors) with server-side fusion
+- Payload metadata filters (medication name, canonical section, reader profile)
+- Simple Docker deploy with volume persistence
+- Production quality (healthcheck, configurable indexes, no in-memory state)
 
-Alternativas avaliadas:
+Evaluated alternatives:
 
-| Alternativa | Motivo de descarte |
+| Alternative | Reason for rejection |
 |---|---|
-| pgvector | Sem hybrid search nativo; depende de extensão Postgres; latência maior |
-| Chroma | Sem hybrid search; foco em prototipagem |
-| FAISS | In-memory; sem filtros de payload; sem persistência nativa |
-| Weaviate | Overhead de configuração; esquema mais rígido; imagem Docker mais pesada |
+| pgvector | No native hybrid search; depends on Postgres extension; higher latency |
+| Chroma | No hybrid search; focused on prototyping |
+| FAISS | In-memory; no payload filters; no native persistence |
+| Weaviate | Configuration overhead; more rigid schema; heavier Docker image |
 
-## Decisão
+## Decision
 
-Usar **Qdrant v1.13.0**:
+Use **Qdrant v1.13.0**:
 
-- Coleção `bulas` com dois vetores nomeados: `dense` (cosine, 3072-dim) e `bm25` (sparse, via `fastembed` + modelo `Qdrant/bm25`)
-- Busca híbrida com dois `Prefetch` paralelos + `Fusion.RRF` server-side
-- Filtros por payload: `med_name`, `section_canonical`, `patient_facing`
-- Volume Docker nomeado `qdrant_data` para persistência entre reinicializações
-- Exposto na porta `6333`; profile `rag` no compose
+- Collection `bulas` with two named vectors: `dense` (cosine, 3072-dim) and `bm25` (sparse, via `fastembed` + `Qdrant/bm25` model)
+- Hybrid search with two parallel `Prefetch` + server-side `Fusion.RRF`
+- Payload filters: `med_name`, `section_canonical`, `patient_facing`
+- Named Docker volume `qdrant_data` for persistence across restarts
+- Exposed on port `6333`; `rag` profile in compose
 
-## Consequências
+## Consequences
 
-**Positivas:**
-- Roda em 1 container sem dependências externas
-- RRF (Reciprocal Rank Fusion) server-side elimina fusão manual no Python
-- Filtros ricos por payload permitem queries com section hint sem múltiplas coleções
-- Suporte a ponto IDs UUIDv5 facilita deduplicação idempotente na ingestão
+**Positive:**
+- Runs in 1 container with no external dependencies
+- Server-side RRF (Reciprocal Rank Fusion) eliminates manual fusion in Python
+- Rich payload filters allow section-hint queries without multiple collections
+- UUIDv5 point IDs support idempotent deduplication during ingestion
 
-**Negativas / trade-offs:**
-- Adiciona um container à stack (vs usar pgvector em Postgres já existente)
-- Requer ingestão offline antes de qualquer query RAG funcionar
-- fastembed baixa o modelo BM25 na primeira execução (~50 MB)
+**Negative / trade-offs:**
+- Adds a container to the stack (vs using pgvector in an existing Postgres)
+- Requires offline ingestion before any RAG query works
+- fastembed downloads the BM25 model on first run (~50 MB)
