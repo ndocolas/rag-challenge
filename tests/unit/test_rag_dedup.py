@@ -12,7 +12,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
-from panvel_assistant.services.rag_service import RAGService
+from bulas_assistant.services.rag_service import RAGService
 
 
 @dataclass

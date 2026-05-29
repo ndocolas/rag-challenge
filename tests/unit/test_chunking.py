@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
-from panvel_assistant.assistant.sectionizer import Section
-from panvel_assistant.services.ingestion_service import (
+from bulas_assistant.assistant.sectionizer import Section
+from bulas_assistant.services.ingestion_service import (
     MIN_SECTION_CHARS,
     SECTION_WHOLE_THRESHOLD,
     parse_filename,

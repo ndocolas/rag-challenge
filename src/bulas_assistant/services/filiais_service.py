@@ -1,4 +1,4 @@
-"""In-memory cache + query layer over the Panvel-PR branch catalog (``filiais.parquet``).
+"""In-memory cache + query layer over the PR branch catalog (``filiais.parquet``).
 
 The parquet is read once at application startup (``load()`` is invoked from the
 FastAPI lifespan hook) and decoded into immutable ``FilialCompleta`` Pydantic
@@ -20,16 +20,16 @@ from typing import cast
 
 import pandas as pd
 
-from panvel_assistant.models.filial_models import (
+from bulas_assistant.models.filial_models import (
     FaixaVida,
     FilialCompleta,
     FilialResumo,
     ServicoFilial,
     TipoEstabelecimento,
 )
-from panvel_assistant.utils.exceptions import InvalidRequestError, ResourceNotFoundError
-from panvel_assistant.utils.logger import get_logger
-from panvel_assistant.utils.settings import settings
+from bulas_assistant.utils.exceptions import InvalidRequestError, ResourceNotFoundError
+from bulas_assistant.utils.logger import get_logger
+from bulas_assistant.utils.settings import settings
 
 logger = get_logger(__name__)
 _logger_extra = {"component.name": "FiliaisService", "component.version": "v1"}
@@ -111,8 +111,10 @@ def _row_to_completa(row: dict) -> FilialCompleta:
         ),
         delivery=_bool(row.get("delivery"), field="delivery", codigo=codigo),
         metragem_area_venda=float(row["metragem_area_venda"]),
-        panvel_clinic=_bool(
-            row.get("panvel_clinic"), field="panvel_clinic", codigo=codigo
+        clinic=_bool(
+            row.get("clinic") if "clinic" in row else row.get("panvel_clinic"),
+            field="clinic",
+            codigo=codigo,
         ),
         estacionamento=_bool(
             row.get("estacionamento"), field="estacionamento", codigo=codigo
@@ -128,8 +130,8 @@ def _row_to_completa(row: dict) -> FilialCompleta:
 def _to_resumo(f: FilialCompleta) -> FilialResumo:
     """Compact representation returned by ``buscar`` (omits non-essential fields)."""
     servicos: list[ServicoFilial] = []
-    if f.panvel_clinic:
-        servicos.append("panvel_clinic")
+    if f.clinic:
+        servicos.append("clinic")
     if f.delivery:
         servicos.append("delivery")
     if f.estacionamento:
@@ -187,7 +189,7 @@ class FiliaisService:
         )
 
     def listar_cidades(self) -> list[str]:
-        """All Paraná cities served by Panvel, sorted alphabetically."""
+        """All Paraná cities served by branches, sorted alphabetically."""
         return list(self._cidades)
 
     def detalhar(self, codigo_filial: str) -> FilialCompleta:

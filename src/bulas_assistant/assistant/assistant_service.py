@@ -27,23 +27,23 @@ from langchain_core.messages import (
 from langchain_core.messages.ai import add_ai_message_chunks
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-from panvel_assistant.assistant.agent_tools import build_tools
-from panvel_assistant.assistant.prompts import SYSTEM_PROMPT_MVP
-from panvel_assistant.models.chat_models import ChatRequest, ToolCallTrace
-from panvel_assistant.services.chat_history_service import (
+from bulas_assistant.assistant.agent_tools import build_tools
+from bulas_assistant.assistant.prompts import SYSTEM_PROMPT_MVP
+from bulas_assistant.models.chat_models import ChatRequest, ToolCallTrace
+from bulas_assistant.services.chat_history_service import (
     RedisChatMessageHistory,
     RedisHistoryStore,
     get_history_store,
 )
-from panvel_assistant.services.filiais_service import FiliaisService
-from panvel_assistant.services.filiais_service import (
+from bulas_assistant.services.filiais_service import FiliaisService
+from bulas_assistant.services.filiais_service import (
     filiais_service as default_filiais_service,
 )
-from panvel_assistant.services.rag_service import RAGService, get_rag_service
-from panvel_assistant.services.trace_service import trace_service
-from panvel_assistant.utils.builders import get_llm
-from panvel_assistant.utils.logger import get_logger, trace_id_var
-from panvel_assistant.utils.sse import encode_event, encode_stream_error, encode_text_event
+from bulas_assistant.services.rag_service import RAGService, get_rag_service
+from bulas_assistant.services.trace_service import trace_service
+from bulas_assistant.utils.builders import get_llm
+from bulas_assistant.utils.logger import get_logger, trace_id_var
+from bulas_assistant.utils.sse import encode_event, encode_stream_error, encode_text_event
 
 logger = get_logger(__name__)
 _logger_extra = {"component.name": "AssistantService", "component.version": "v1"}
@@ -80,7 +80,7 @@ def _citations_from_tool_message(content: object) -> list[dict[str, Any]]:
     if not matches:
         return []
     try:
-        from panvel_assistant.services.rag_service import RAGService
+        from bulas_assistant.services.rag_service import RAGService
 
         citations = RAGService.citations_from_matches(matches)
         return [c.model_dump() for c in citations]

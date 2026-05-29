@@ -5,7 +5,7 @@
 Backend conversacional com:
 
 - RAG sobre 20 bulas Anvisa (corpus em PDF, indexado no Qdrant)
-- Tool calling sobre 124 filiais Panvel-PR (in-memory a partir de parquet)
+- Tool calling sobre 124 filiais do PR (in-memory a partir de parquet)
 - Streaming SSE token-a-token
 - Memória conversacional por sessão via Redis
 - Observabilidade via LangSmith + logs JSON estruturados

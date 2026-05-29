@@ -12,10 +12,10 @@ from urllib.parse import urlparse
 
 import pytest
 
-from panvel_assistant.assistant.agent_tools import build_tools
-from panvel_assistant.services.filiais_service import filiais_service
-from panvel_assistant.services.rag_service import RAGService
-from panvel_assistant.utils.settings import settings
+from bulas_assistant.assistant.agent_tools import build_tools
+from bulas_assistant.services.filiais_service import filiais_service
+from bulas_assistant.services.rag_service import RAGService
+from bulas_assistant.utils.settings import settings
 
 
 def _qdrant_up() -> bool:
@@ -58,7 +58,7 @@ def buscar_bulas_tool():
     real = _real_gemini_key()
     if real:
         os.environ["GOOGLE_API_KEY"] = real
-        from panvel_assistant.utils.settings import get_settings
+        from bulas_assistant.utils.settings import get_settings
 
         get_settings.cache_clear()
     tools = build_tools(filiais_service, RAGService())

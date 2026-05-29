@@ -19,19 +19,19 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import StreamingResponse
 
-from panvel_assistant.assistant.assistant_service import (
+from bulas_assistant.assistant.assistant_service import (
     AssistantService,
     get_assistant_service,
 )
-from panvel_assistant.models.chat_models import ChatRequest
-from panvel_assistant.services.chat_history_service import (
+from bulas_assistant.models.chat_models import ChatRequest
+from bulas_assistant.services.chat_history_service import (
     RedisHistoryStore,
     get_history_store,
 )
-from panvel_assistant.utils.exceptions import RateLimitedError
-from panvel_assistant.utils.handle_errors import handle_errors
-from panvel_assistant.utils.logger import get_logger
-from panvel_assistant.utils.settings import Settings, get_settings
+from bulas_assistant.utils.exceptions import RateLimitedError
+from bulas_assistant.utils.handle_errors import handle_errors
+from bulas_assistant.utils.logger import get_logger
+from bulas_assistant.utils.settings import Settings, get_settings
 
 logger = get_logger(__name__)
 _logger_extra = {"component.name": "ChatRoute", "component.version": "v1"}

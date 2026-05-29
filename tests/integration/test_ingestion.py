@@ -13,11 +13,11 @@ from urllib.parse import urlparse
 
 import pytest
 
-from panvel_assistant.services.ingestion_service import (
+from bulas_assistant.services.ingestion_service import (
     IngestionService,
     chunks_for_pdf,
 )
-from panvel_assistant.utils.settings import settings
+from bulas_assistant.utils.settings import settings
 
 
 def _qdrant_up() -> bool:

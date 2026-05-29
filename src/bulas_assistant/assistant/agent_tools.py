@@ -1,4 +1,4 @@
-"""Centralized tool registry for the Panvel assistant.
+"""Centralized tool registry for the Bulas assistant.
 
 All LangChain tools the agent has access to are defined here. Each tool is a
 closure over the injected dependencies returned by :func:`build_tools`,
@@ -12,7 +12,7 @@ import time
 
 from langchain_core.tools import tool
 
-from panvel_assistant.models.tool_models import (
+from bulas_assistant.models.tool_models import (
     BuscarBulasInput,
     BuscarFiliaisInput,
     BuscarFiliaisOutput,
@@ -21,13 +21,13 @@ from panvel_assistant.models.tool_models import (
     ListarCidadesOutput,
     ToolErrorPayload,
 )
-from panvel_assistant.services.filiais_service import FiliaisService
-from panvel_assistant.services.rag_service import RAGService
-from panvel_assistant.utils.exceptions import (
+from bulas_assistant.services.filiais_service import FiliaisService
+from bulas_assistant.services.rag_service import RAGService
+from bulas_assistant.utils.exceptions import (
     InvalidRequestError,
     ResourceNotFoundError,
 )
-from panvel_assistant.utils.logger import get_logger
+from bulas_assistant.utils.logger import get_logger
 
 logger = get_logger(__name__)
 _logger_extra = {"component.name": "AgentTools", "component.version": "v1"}
@@ -56,10 +56,10 @@ def build_tools(
         min_metragem: float | None = None,
         limit: int = 10,
     ) -> str:
-        """Search Panvel branches in Paraná applying optional filters.
+        """Search branches in Paraná applying optional filters.
 
         Use this tool when the user wants to find stores that match criteria
-        such as: specific city, services (panvel_clinic / delivery / estacionamento /
+        such as: specific city, services (clinic / delivery / estacionamento /
         atendimento_24_horas), type (BAIRRO / CENTRO / SHOPPING / MALL / SUPERMERCADO),
         operating range, or minimum floor area.
 
@@ -83,7 +83,7 @@ def build_tools(
             if str(exc).startswith("cidade_nao_encontrada:"):
                 return ToolErrorPayload(
                     error="cidade_nao_encontrada",
-                    message=f"'{cidade}' is not in the Paraná region served by Panvel.",
+                    message=f"'{cidade}' is not in the Paraná region served by branches.",
                     hint={"cidades_disponiveis": filiais_service.listar_cidades()},
                 ).model_dump_json()
             raise
@@ -128,7 +128,7 @@ def build_tools(
 
     @tool("listar_cidades_atendidas")
     def listar_cidades_atendidas() -> str:
-        """List all cities in Paraná where Panvel branches exist.
+        """List all cities in Paraná where branches exist.
 
         Use BEFORE buscar_filiais when the user mentions a city that may
         not be covered — this tool confirms the scope.

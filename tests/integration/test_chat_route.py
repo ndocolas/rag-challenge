@@ -11,14 +11,14 @@ from asgi_lifespan import LifespanManager
 from fakeredis import aioredis as fake_aioredis
 from langchain_core.messages import BaseMessage
 
-from panvel_assistant.assistant.assistant_service import assistant_service
-from panvel_assistant.main import app
-from panvel_assistant.services.chat_history_service import (
+from bulas_assistant.assistant.assistant_service import assistant_service
+from bulas_assistant.main import app
+from bulas_assistant.services.chat_history_service import (
     _deserialize,
     history_store,
 )
-from panvel_assistant.services.filiais_service import filiais_service
-from panvel_assistant.services.trace_service import trace_service
+from bulas_assistant.services.filiais_service import filiais_service
+from bulas_assistant.services.trace_service import trace_service
 
 
 def _parse_sse_frames(raw: str) -> list[tuple[str, str | dict]]:
@@ -106,7 +106,7 @@ def stub_session_lock(monkeypatch):
     async def _release(self, session_id: str, token: str) -> None:
         return None
 
-    from panvel_assistant.services.chat_history_service import RedisHistoryStore
+    from bulas_assistant.services.chat_history_service import RedisHistoryStore
 
     monkeypatch.setattr(RedisHistoryStore, "acquire_lock", _acquire)
     monkeypatch.setattr(RedisHistoryStore, "release_lock", _release)
@@ -122,7 +122,7 @@ def stub_gemini(monkeypatch):
     """
 
     async def _stream(messages: Sequence[BaseMessage]) -> AsyncIterator[dict]:
-        for piece in ["Eu ", "sou ", "Panvel."]:
+        for piece in ["Eu ", "sou ", "o assistente."]:
             yield {"type": "token", "text": piece}
         yield {"type": "done"}
 
@@ -153,7 +153,7 @@ async def test_post_chat_streams_tokens_and_persists_history_across_turns(
             assert [payload for _, payload in events_1[1:4]] == [
                 "Eu ",
                 "sou ",
-                "Panvel.",
+                "o assistente.",
             ]
             assert events_1[-1][1] == {"session_id": "itest"}
 
@@ -181,9 +181,9 @@ async def test_post_chat_streams_tokens_and_persists_history_across_turns(
             messages = [_deserialize(raw) for raw in raw_entries]
             assert [m.type for m in messages] == ["human", "ai", "human", "ai"]
             assert messages[0].content == "oi"
-            assert messages[1].content == "Eu sou Panvel."
+            assert messages[1].content == "Eu sou o assistente."
             assert messages[2].content == "e ai?"
-            assert messages[3].content == "Eu sou Panvel."
+            assert messages[3].content == "Eu sou o assistente."
 
 
 async def test_post_chat_returns_422_for_empty_message(fake_redis_client, stub_gemini):
@@ -213,14 +213,14 @@ def small_body_limit(monkeypatch):
     The body-size middleware reads the limit via ``get_settings()`` on each
     request, so monkeypatching the cached singleton applies immediately.
     """
-    from panvel_assistant.utils.settings import get_settings
+    from bulas_assistant.utils.settings import get_settings
 
     real = get_settings()
 
     def _set(limit_bytes: int):
         patched = real.model_copy(update={"MAX_REQUEST_BODY_BYTES": limit_bytes})
         monkeypatch.setattr(
-            "panvel_assistant.main.get_settings", lambda: patched
+            "bulas_assistant.main.get_settings", lambda: patched
         )
 
     return _set
@@ -306,15 +306,15 @@ async def test_post_chat_enforces_rate_limit(
 ):
     """After exceeding the per-minute budget the route must return 429."""
     monkeypatch.setattr(
-        "panvel_assistant.utils.settings.Settings.model_config",
+        "bulas_assistant.utils.settings.Settings.model_config",
         # No-op; rate limit is overridden via the dependency below.
         (__import__(
-                "panvel_assistant.utils.settings", fromlist=["Settings"]
+                "bulas_assistant.utils.settings", fromlist=["Settings"]
             ).Settings).model_config,
     )
 
-    from panvel_assistant.main import app as fastapi_app
-    from panvel_assistant.utils.settings import get_settings
+    from bulas_assistant.main import app as fastapi_app
+    from bulas_assistant.utils.settings import get_settings
 
     real_settings = get_settings()
     # 3 hits/min is enough to assert a 429 on the 4th call.

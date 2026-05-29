@@ -5,15 +5,15 @@ from datetime import UTC, datetime
 import pytest
 from pydantic import ValidationError
 
-from panvel_assistant.models.bula_models import BulaChunk, BulaMetadata
-from panvel_assistant.models.chat_models import (
+from bulas_assistant.models.bula_models import BulaChunk, BulaMetadata
+from bulas_assistant.models.chat_models import (
     ChatMessage,
     ChatRequest,
     Citation,
     StreamEvent,
 )
-from panvel_assistant.models.filial_models import FilialResumo
-from panvel_assistant.models.tool_models import BuscarFiliaisInput, ToolErrorPayload
+from bulas_assistant.models.filial_models import FilialResumo
+from bulas_assistant.models.tool_models import BuscarFiliaisInput, ToolErrorPayload
 
 
 def test_chat_message_serialization():
@@ -126,9 +126,9 @@ def test_filial_servico_enum():
         codigo_filial="042",
         localidade="CURITIBA",
         tipo_estabelecimento="BAIRRO",
-        servicos_ativos=["delivery", "panvel_clinic"],
+        servicos_ativos=["delivery", "clinic"],
     )
-    assert ok.servicos_ativos == ["delivery", "panvel_clinic"]
+    assert ok.servicos_ativos == ["delivery", "clinic"]
 
 
 def test_tool_input_buscar_filiais_optional_fields():

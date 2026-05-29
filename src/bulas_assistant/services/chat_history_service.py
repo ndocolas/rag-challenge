@@ -35,9 +35,9 @@ from langchain_core.messages import (
     messages_to_dict,
 )
 
-from panvel_assistant.utils.exceptions import SessionBusyError
-from panvel_assistant.utils.logger import get_logger
-from panvel_assistant.utils.settings import Settings, get_settings
+from bulas_assistant.utils.exceptions import SessionBusyError
+from bulas_assistant.utils.logger import get_logger
+from bulas_assistant.utils.settings import Settings, get_settings
 
 logger = get_logger(__name__)
 _logger_extra = {"component.name": "ChatHistoryService", "component.version": "v1"}

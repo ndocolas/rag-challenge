@@ -7,11 +7,11 @@ from typing import Any
 from fastapi import APIRouter, Depends, HTTPException
 from langchain_core.messages import AIMessage, HumanMessage
 
-from panvel_assistant.services.chat_history_service import (
+from bulas_assistant.services.chat_history_service import (
     RedisHistoryStore,
     get_history_store,
 )
-from panvel_assistant.utils.handle_errors import handle_errors
+from bulas_assistant.utils.handle_errors import handle_errors
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 

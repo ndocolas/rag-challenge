@@ -15,11 +15,11 @@ from asgi_lifespan import LifespanManager
 from fakeredis import aioredis as fake_aioredis
 from langchain_core.messages import BaseMessage
 
-from panvel_assistant.assistant.assistant_service import assistant_service
-from panvel_assistant.main import app
-from panvel_assistant.services.chat_history_service import history_store
-from panvel_assistant.services.filiais_service import filiais_service
-from panvel_assistant.services.trace_service import trace_service
+from bulas_assistant.assistant.assistant_service import assistant_service
+from bulas_assistant.main import app
+from bulas_assistant.services.chat_history_service import history_store
+from bulas_assistant.services.filiais_service import filiais_service
+from bulas_assistant.services.trace_service import trace_service
 
 
 def _parse_sse_frames(raw: str) -> list[tuple[str, str | dict]]:
@@ -100,7 +100,7 @@ def stub_session_lock(monkeypatch):
     async def _release(self, session_id: str, token: str) -> None:
         return None
 
-    from panvel_assistant.services.chat_history_service import RedisHistoryStore
+    from bulas_assistant.services.chat_history_service import RedisHistoryStore
 
     monkeypatch.setattr(RedisHistoryStore, "acquire_lock", _acquire)
     monkeypatch.setattr(RedisHistoryStore, "release_lock", _release)

@@ -13,8 +13,8 @@ from urllib.parse import urlparse
 
 import pytest
 
-from panvel_assistant.services.rag_service import RAGService
-from panvel_assistant.utils.settings import settings
+from bulas_assistant.services.rag_service import RAGService
+from bulas_assistant.utils.settings import settings
 
 
 def _qdrant_up() -> bool:
@@ -65,7 +65,7 @@ pytestmark = [
     ),
     pytest.mark.skipif(
         not _collection_populated(),
-        reason="collection bulas_panvel empty — run scripts/ingest_bulas.py first",
+        reason="collection bulas empty — run scripts/ingest_bulas.py first",
     ),
 ]
 
@@ -78,7 +78,7 @@ def rag() -> RAGService:
     real = _real_gemini_key()
     if real:
         os.environ["GOOGLE_API_KEY"] = real
-        from panvel_assistant.utils.settings import get_settings
+        from bulas_assistant.utils.settings import get_settings
 
         get_settings.cache_clear()
     return RAGService()
