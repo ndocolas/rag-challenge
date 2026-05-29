@@ -1,4 +1,4 @@
-# RAG Bulas — Pharmaceutical Assistant
+# RAG leaflets — Pharmaceutical Assistant
 
 LLM assistant for pharmacological information (RAG over 20 Anvisa drug leaflets) and branch lookup (tool calling). Token-by-token SSE streaming.
 
