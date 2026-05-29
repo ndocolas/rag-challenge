@@ -1,46 +1,45 @@
+# ADR 003: Anvisa Section-Aware Chunking
 
-# ADR 003: Chunking section-aware Anvisa
+**Status:** Accepted
+**Date:** 2026-05-20
 
-**Status:** Aceito
-**Data:** 2026-05-20
+## Context
 
-## Contexto
+The corpus consists of 20 Anvisa drug leaflets in RDC 47/2009 format, which defines two structures:
 
-O corpus é composto por 20 bulas Anvisa no formato RDC 47/2009, que define duas estruturas:
+- **IAP (Patient Information):** 9 questions in accessible language (e.g., "What is this medication indicated for?", "How should I use this medication?")
+- **IT (Technical Information):** clinical sections (dosage, contraindications, interactions, pharmacokinetics)
 
-- **IAP (Informações ao Paciente):** 9 perguntas em linguagem acessível (ex: "Para que este medicamento é indicado?", "Como devo usar este medicamento?")
-- **IT (Informações Técnicas):** seções clínicas (posologia, contraindicações, interações, farmacocinética)
+Generic size-based chunking loses section semantics: a 400-token chunk may cross the boundary between dosage and contraindications, degrading recall for specific queries.
 
-O chunking genérico por tamanho perde a semântica de seção: um chunk de 400 tokens pode cruzar a fronteira entre posologia e contraindicações, degradando o recall em queries específicas.
+Evaluated alternatives:
 
-Alternativas avaliadas:
-
-| Estratégia | Motivo de descarte |
+| Strategy | Reason for rejection |
 |---|---|
-| Recursive char split puro | Ignora estrutura; chunks cruzam seções; citações imprecisas |
-| Semantic chunking (embedding-based) | Custo 2× em embeddings durante ingestão; não determinístico; lento |
-| Page-level | Chunks muito grandes (>2000 tokens); contexto difuso; sem citação por seção |
+| Pure recursive char split | Ignores structure; chunks cross sections; imprecise citations |
+| Semantic chunking (embedding-based) | 2× embedding cost during ingestion; non-deterministic; slow |
+| Page-level | Chunks too large (>2000 tokens); diffuse context; no section citation |
 
-## Decisão
+## Decision
 
-**Section-aware chunking** com 16 chaves canônicas mapeando os headers regex das bulas:
+**Section-aware chunking** with 16 canonical keys mapping regex headers from the leaflets:
 
-- Prefixo `IAP_*` para seções ao paciente (ex: `IAP_6_POSOLOGIA`, `IAP_8_REACOES_ADVERSAS`)
-- Prefixo `IT_*` para seções técnicas (ex: `IT_INTERACOES_MEDICAMENTOSAS`, `IT_FARMACOCINETICA`)
-- Seções com conteúdo ≤ 3500 chars → chunk único (`is_full_section=True`)
-- Seções longas → recursive split com 1600 tokens, overlap 120, header da seção prefixado em cada sub-chunk
-- Seções sem header detectável → chave `UNCLASSIFIED` (fallback 100% de cobertura)
-- Bulas multi-produto (ex: Ritalina IR/LA) → campo `med_variant` nos metadados do payload
+- `IAP_*` prefix for patient-facing sections (e.g., `IAP_6_POSOLOGIA`, `IAP_8_REACOES_ADVERSAS`)
+- `IT_*` prefix for technical sections (e.g., `IT_INTERACOES_MEDICAMENTOSAS`, `IT_FARMACOCINETICA`)
+- Sections with content ≤ 3500 chars → single chunk (`is_full_section=True`)
+- Long sections → recursive split with 1600 tokens, 120 overlap, section header prefixed on each sub-chunk
+- Sections without detected header → `UNCLASSIFIED` key (100% coverage fallback)
+- Multi-product leaflets (e.g., Ritalina IR/LA) → `med_variant` field in payload metadata
 
-## Consequências
+## Consequences
 
-**Positivas:**
-- Citações ricas `(bula_id, section_canonical, page_range)` exibidas no frontend
-- Recall alto em queries específicas: `section_hint` filtra diretamente por chave canônica
-- Cobertura total: UNCLASSIFIED cobre bulas com extração de texto irregular
-- Ingestão determinística e idempotente (IDs UUIDv5 por chunk_id)
+**Positive:**
+- Rich citations `(bula_id, section_canonical, page_range)` displayed in frontend
+- High recall for specific queries: `section_hint` filters directly by canonical key
+- Full coverage: UNCLASSIFIED covers leaflets with irregular text extraction
+- Deterministic and idempotent ingestion (UUIDv5 IDs per chunk_id)
 
-**Negativas / trade-offs:**
-- Regex de detecção de headers pode falhar em bulas com formatação não-padrão (mitigado pelo fallback)
-- 16 chaves canônicas precisam de manutenção se a Anvisa atualizar a RDC 47/2009
-- Section hints no código do agente precisam ser mantidos em sincronia com as chaves
+**Negative / trade-offs:**
+- Header detection regex may fail on leaflets with non-standard formatting (mitigated by fallback)
+- 16 canonical keys require maintenance if Anvisa updates RDC 47/2009
+- Section hints in agent code must stay in sync with the canonical keys

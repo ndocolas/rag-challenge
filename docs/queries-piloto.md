@@ -1,126 +1,126 @@
-# Queries piloto
+# Pilot Queries
 
-Bateria de 10 perguntas para validação manual end-to-end. Executar após ingestão completa.
+Battery of 10 questions for manual end-to-end validation. Run after full ingestion.
 
-Critério de aprovação: **≥ 8/10** com resposta aceitável.
+Passing criterion: **≥ 8/10** with acceptable response.
 
 ---
 
-## Farmacológicas (RAG)
+## Pharmacological (RAG)
 
-**1. Contraindicações da Ritalina**
+**1. Ritalina contraindications**
 
 > "Quais são as contraindicações da Ritalina?"
 
-Esperado:
-- Tool `buscar_bulas` invocada com `med_name="Ritalina"`, `section_hint` para contraindicações
-- Evento `sources` cita bula Ritalina, seção `IAP_3` ou `IT_CONTRAINDICACOES`
-- Resposta menciona hipertireoidismo, glaucoma, uso concomitante de IMAO
-- Disclaimer médico ao final
+Expected:
+- Tool `buscar_bulas` invoked with `med_name="Ritalina"`, `section_hint` for contraindications
+- `sources` event cites Ritalina leaflet, section `IAP_3` or `IT_CONTRAINDICACOES`
+- Response mentions hyperthyroidism, glaucoma, concomitant MAOI use
+- Medical disclaimer at the end
 
 ---
 
-**2. Posologia do pantoprazol em adultos**
+**2. Pantoprazole dosage for adults**
 
 > "Qual a dose recomendada de pantoprazol para adultos?"
 
-Esperado:
-- Tool `buscar_bulas` com `med_name` contendo "pantoprazol", section hint posologia
-- Evento `sources` cita bula 805950, seção `IAP_6` ou `IT_POSOLOGIA`
-- Resposta menciona 40 mg/dia em jejum
+Expected:
+- Tool `buscar_bulas` with `med_name` containing "pantoprazol", section hint posology
+- `sources` event cites leaflet 805950, section `IAP_6` or `IT_POSOLOGIA`
+- Response mentions 40 mg/day on an empty stomach
 
 ---
 
-**3. Reações adversas do tramadol com paracetamol**
+**3. Adverse reactions of tramadol with paracetamol**
 
 > "Quais as reações adversas do tramadol com paracetamol?"
 
-Esperado:
-- Tool `buscar_bulas` com `med_name` adequado, section hint reações adversas
-- Evento `sources` cita bula 93790, seção `IAP_8` ou `IT_REACOES_ADVERSAS`
-- Resposta lista náusea, tontura, sonolência como mais frequentes
+Expected:
+- Tool `buscar_bulas` with appropriate `med_name`, section hint adverse reactions
+- `sources` event cites leaflet 93790, section `IAP_8` or `IT_REACOES_ADVERSAS`
+- Response lists nausea, dizziness, drowsiness as most frequent
 
 ---
 
-**4. Gestinol com antibióticos**
+**4. Gestinol with antibiotics**
 
 > "O Gestinol pode ser usado junto com antibióticos?"
 
-Esperado:
-- Tool `buscar_bulas` com `med_name="Gestinol"`, section hint interações
-- Evento `sources` cita bula 438950, seção `IT_INTERACOES_MEDICAMENTOSAS`
-- Resposta aborda interação com rifampicina e possível redução de eficácia
+Expected:
+- Tool `buscar_bulas` with `med_name="Gestinol"`, section hint interactions
+- `sources` event cites leaflet 438950, section `IT_INTERACOES_MEDICAMENTOSAS`
+- Response covers interaction with rifampicin and possible efficacy reduction
 
 ---
 
-**5. Dose esquecida de memantina**
+**5. Missed memantine dose**
 
 > "Esqueci de tomar a memantina, o que devo fazer?"
 
-Esperado:
-- Tool `buscar_bulas` com `med_name` contendo "memantina"
-- Evento `sources` cita bula 111824, seção `IAP_7`
-- Resposta orienta: tomar assim que lembrar, não duplicar dose
+Expected:
+- Tool `buscar_bulas` with `med_name` containing "memantina"
+- `sources` event cites leaflet 111824, section `IAP_7`
+- Response advises: take as soon as remembered, do not double dose
 
 ---
 
-## Filiais (tool calling)
+## Branches (tool calling)
 
-**6. Lojas em Curitiba com Clinic e atendimento 24h**
+**6. Stores in Curitiba with Clinic and 24h service**
 
 > "Quais lojas em Curitiba têm Clinic e funcionam 24 horas?"
 
-Esperado:
-- Tool `buscar_filiais` invocada com filtros `cidade="Curitiba"`, `clinic=true`, `horario_24h=true`
-- Evento `tool_result` retorna lista com filial 1557 (ou equivalente)
-- Resposta apresenta nome, endereço e horário
+Expected:
+- Tool `buscar_filiais` invoked with filters `cidade="Curitiba"`, `clinic=true`, `horario_24h=true`
+- `tool_result` event returns list with branch 1557 (or equivalent)
+- Response presents name, address and hours
 
 ---
 
-**7. Loja em Florianópolis**
+**7. Store in Florianópolis**
 
 > "Vocês têm alguma loja em Florianópolis?"
 
-Esperado:
-- Tool `listar_cidades_atendidas` invocada
-- Resposta informa que o serviço atende apenas Paraná; Florianópolis não está na lista
-- Tom útil, sugere verificar canais do assistente para outras regiões
+Expected:
+- Tool `listar_cidades_atendidas` invoked
+- Response informs that the service covers Paraná only; Florianópolis is not on the list
+- Helpful tone, suggests checking assistant channels for other regions
 
 ---
 
-**8. Detalhes da filial 1761**
+**8. Details of branch 1761**
 
 > "Preciso dos detalhes completos da filial 1761."
 
-Esperado:
-- Tool `detalhes_filial` invocada com `codigo_filial=1761`
-- Evento `tool_result` retorna cadastro completo (Apucarana-PR)
-- Resposta apresenta endereço, telefone, horário e serviços disponíveis
+Expected:
+- Tool `detalhes_filial` invoked with `codigo_filial=1761`
+- `tool_result` event returns full record (Apucarana-PR)
+- Response presents address, phone, hours and available services
 
 ---
 
-## Multi-turno
+## Multi-turn
 
-**9. Anáfora entre turnos**
+**9. Anaphora across turns**
 
-> Turno 1: "Para que serve a paroxetina?"
-> Turno 2: "E quais são os efeitos colaterais?"
+> Turn 1: "Para que serve a paroxetina?"
+> Turn 2: "E quais são os efeitos colaterais?"
 
-Esperado:
-- Turno 2 resolve a anáfora ("efeitos colaterais" → paroxetina) via histórico Redis
-- Tool `buscar_bulas` com `med_name` adequado, section hint reações adversas
-- Evento `sources` cita bula 346659, seção `IAP_8` ou `IT_REACOES_ADVERSAS`
-- Resposta lista efeitos colaterais sem pedir confirmação do medicamento
+Expected:
+- Turn 2 resolves the anaphora ("efeitos colaterais" → paroxetina) via Redis history
+- Tool `buscar_bulas` with appropriate `med_name`, section hint adverse reactions
+- `sources` event cites leaflet 346659, section `IAP_8` or `IT_REACOES_ADVERSAS`
+- Response lists side effects without asking for medication confirmation
 
 ---
 
-## Fora de escopo
+## Out of scope
 
-**10. Pergunta fora do domínio**
+**10. Out-of-domain question**
 
 > "Quanto custa um Uber até a filial mais próxima?"
 
-Esperado:
-- Nenhuma tool invocada
-- Resposta recusa de forma educada e objetiva
-- Redireciona para o escopo: informações sobre medicamentos ou filiais do PR
+Expected:
+- No tool invoked
+- Response declines politely and objectively
+- Redirects to scope: medication information or branches in PR

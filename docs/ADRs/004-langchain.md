@@ -1,44 +1,44 @@
-# ADR 004: LangChain sem LangGraph
+# ADR 004: LangChain without LangGraph
 
-**Status:** Aceito
-**Data:** 2026-05-20
+**Status:** Accepted
+**Date:** 2026-05-20
 
-## Contexto
+## Context
 
-O assistente precisa de um loop de tool calling com as seguintes propriedades:
+The assistant needs a tool calling loop with the following properties:
 
-- Streaming token-a-token durante a geração (SSE para o cliente)
-- Execução paralela de múltiplas tool calls em um mesmo turno
-- Guard contra loop infinito (ex: tool call repetida ou ciclo entre tools)
-- Rastreabilidade: cada turno precisa de um trace_id observável no LangSmith
-- Código debugável por um time pequeno sem curva de aprendizado de frameworks de grafo
+- Token-by-token streaming during generation (SSE to client)
+- Parallel execution of multiple tool calls in the same turn
+- Infinite loop guard (e.g., repeated tool call or cycle between tools)
+- Traceability: each turn needs an observable trace_id in LangSmith
+- Code debuggable by a small team without a graph framework learning curve
 
-Alternativas avaliadas:
+Evaluated alternatives:
 
-| Alternativa | Motivo de descarte |
+| Alternative | Reason for rejection |
 |---|---|
-| LangGraph | State machine explícita necessária; curva de aprendizado relevante; overhead para caso de uso linear |
-| OpenAI SDK direto | Mais controle, mas mais código boilerplate; tracing manual; lock-in de provider |
-| AgentExecutor (LangChain clássico) | Deprecated; sem suporte a streaming granular de tool calls |
+| LangGraph | Explicit state machine required; relevant learning curve; overhead for linear use case |
+| OpenAI SDK directly | More control, but more boilerplate; manual tracing; provider lock-in |
+| AgentExecutor (classic LangChain) | Deprecated; no granular tool call streaming support |
 
-## Decisão
+## Decision
 
-**LangChain puro** com loop manual em `AssistantService`:
+**Pure LangChain** with manual loop in `AssistantService`:
 
-- `llm.bind_tools(tools)` para registrar as 5 tools no modelo
-- `astream` do LangChain para streaming token-a-token via `astream_events`
-- Loop manual: detecta `tool_calls` na resposta, executa em paralelo com `asyncio.gather`, anexa resultados como `ToolMessage`, reinicia o stream
-- Guard de segurança: deduplicação por fingerprint de tool call (nome + args) aborta loop duplicado; `MAX_TOOL_ITERATIONS=4` limita profundidade
+- `llm.bind_tools(tools)` to register the 5 tools in the model
+- LangChain `astream` for token-by-token streaming via `astream_events`
+- Manual loop: detects `tool_calls` in response, executes in parallel with `asyncio.gather`, appends results as `ToolMessage`, restarts stream
+- Safety guard: deduplication by tool call fingerprint (name + args) aborts duplicate loop; `MAX_TOOL_ITERATIONS=4` limits depth
 
-## Consequências
+## Consequences
 
-**Positivas:**
-- Código direto e linear: fácil de debugar e testar com mocks
-- LangSmith traça automaticamente via callbacks LangChain (sem instrumentação manual)
-- Troca de provider LLM = apenas alterar `builders.py` (interface `ChatGoogleGenerativeAI` → qualquer `BaseChatModel`)
-- Controle granular dos eventos SSE: cada etapa (token, tool_call, tool_result, sources) é emitida explicitamente
+**Positive:**
+- Direct and linear code: easy to debug and test with mocks
+- LangSmith traces automatically via LangChain callbacks (no manual instrumentation)
+- LLM provider swap = modify only `builders.py` (`ChatGoogleGenerativeAI` → any `BaseChatModel`)
+- Granular SSE event control: each step (token, tool_call, tool_result, sources) emitted explicitly
 
-**Negativas / trade-offs:**
-- Loop manual precisa ser mantido se o contrato de tool calling do LangChain mudar
-- Sem state machine explícita: fluxos mais complexos (ex: ramificações condicionais) exigiriam refatoração
-- `MAX_TOOL_ITERATIONS=4` é um limite fixo; casos edge com muitas tools legítimas precisariam de ajuste
+**Negative / trade-offs:**
+- Manual loop must be maintained if LangChain's tool calling contract changes
+- No explicit state machine: more complex flows (e.g., conditional branches) would require refactoring
+- `MAX_TOOL_ITERATIONS=4` is a fixed limit; edge cases with many legitimate tools would need adjustment
